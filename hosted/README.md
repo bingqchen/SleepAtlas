@@ -101,6 +101,10 @@ Skill selection and rate assumptions survive edits, drafts, image-free backup ex
 
 ## Swipe through details (Reader v20)
 
-In saved Pokémon details, swipe left for the next Pokémon or right for the previous one. Previous/Next buttons and Left/Right arrow keys provide the same navigation. The sequence follows the collection's filters and sort at the time details opens, stops at either end, and shows the current position. Examples, single-item collections, and records outside the current filters do not offer paging. Each new Pokémon starts at the top of its details; Edit and Delete act on the displayed Pokémon.
+In saved Pokémon details, swipe left for the next Pokémon or right for the previous one. Previous/Next buttons and Left/Right arrow keys provide the same navigation. The sequence follows the collection's filters and sort at the time details opens, stops at either end, and shows the current position. Examples, single-item collections, and records outside the current filters do not offer paging. Each new Pokémon starts at the top of its details; Edit opens the displayed Pokémon.
+
+## Delete from the editor (Reader v21)
+
+Delete appears in the edit screen for saved Pokémon, beside Cancel and Analyze & save. It is hidden for new Pokémon and examples. Deletion asks for confirmation and warns when unsaved edits will also be discarded. Successful deletion clears a recovery draft for that Pokémon while preserving unrelated drafts; a failed deletion keeps the editor open. The details screen has no top-right × and retains its footer Close button and Escape support.
 
 Single-finger horizontal swipes leave vertical scrolling, overflowing tables, links/buttons, text selection, pinch zoom, and Safari's edge gestures alone. Closing, editing, or deleting invalidates pending detail reads so a late response cannot reopen the dialog. `node tests/detail-navigation.mjs` covers ordered neighbors, endpoints, gesture rejection, click suppression, and asynchronous close/error handling.
