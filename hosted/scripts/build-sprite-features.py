@@ -2,6 +2,7 @@ import json,math,base64
 from pathlib import Path
 from PIL import Image
 N=24
+RENDER_VARIANTS=[(48,.65),(80,.65)]
 def features(im):
  im=im.convert('RGBA');w,h=im.size;px=list(im.getdata());mask=[]
  for r,g,b,a in px:
@@ -24,8 +25,17 @@ def features(im):
 if __name__=='__main__':
  import argparse
  parser=argparse.ArgumentParser();parser.add_argument('index',help='JSON sprite index: species, shiny, path');parser.add_argument('output');args=parser.parse_args()
- entries=json.load(open(args.index));result=[]
+ entries=json.load(open(args.index));result=[];rendered=[]
  for row in entries:
-  f=features(Image.open(row['path']))
+  source=Image.open(row['path']).convert('RGBA');f=features(source)
   if f:result.append({'species':row['species'],'shiny':row['shiny'],'pixels':base64.b64encode(f).decode()})
+  # The compact in-game portrait can be downsampled and softened, especially
+  # after a screenshot is shared. Apply the same variants to every reference.
+  for size,opacity in RENDER_VARIANTS:
+   image=source.resize((size,size),Image.Resampling.LANCZOS)
+   image.putalpha(image.getchannel('A').point(lambda a:round(a*opacity)))
+   background=Image.new('RGBA',image.size,'white');background.alpha_composite(image)
+   f=features(background)
+   if f:rendered.append({'species':row['species'],'shiny':row['shiny'],'renderSize':size,'renderOpacity':opacity,'pixels':base64.b64encode(f).decode()})
+ result.extend(rendered)
  Path(args.output).write_text(json.dumps({'size':N,'sourceCommit':'ef1b1e6ce11ea809bef7b9a7249f574b1eb43561','entries':result},separators=(',',':')))

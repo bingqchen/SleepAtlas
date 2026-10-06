@@ -16,9 +16,17 @@ function contrastCanvas(source){
   context.putImageData(pixels,0,0);return canvas;
 }
 async function recognize(worker,canvas){
-  const {data}=await worker.recognize(canvas,{}, {blocks:true,text:true});
-  const box=l=>({text:l.text.trim(),confidence:l.confidence/100,x:l.bbox.x0/canvas.width,y:l.bbox.y0/canvas.height,w:(l.bbox.x1-l.bbox.x0)/canvas.width,h:(l.bbox.y1-l.bbox.y0)/canvas.height});
-  return (data.blocks||[]).flatMap(b=>b.paragraphs||[]).flatMap(p=>p.lines||[]).map(l=>({...box(l),words:(l.words||[]).map(box).filter(w=>w.text)})).filter(l=>l.text);
+  // Shared screenshots are often reduced to ~600 px wide. Enlarge text for OCR
+  // while retaining the untouched source pixels for icon/portrait matching.
+  let input=canvas;
+  if(Math.max(canvas.width,canvas.height)<1800){
+    const scale=Math.min(2,2400/Math.max(canvas.width,canvas.height));input=makeCanvas(Math.round(canvas.width*scale),Math.round(canvas.height*scale));input.getContext('2d').drawImage(canvas,0,0,input.width,input.height);
+  }
+  try{
+    const {data}=await worker.recognize(input,{}, {blocks:true,text:true});
+    const box=l=>({text:l.text.trim(),confidence:l.confidence/100,x:l.bbox.x0/input.width,y:l.bbox.y0/input.height,w:(l.bbox.x1-l.bbox.x0)/input.width,h:(l.bbox.y1-l.bbox.y0)/input.height});
+    return (data.blocks||[]).flatMap(b=>b.paragraphs||[]).flatMap(p=>p.lines||[]).map(l=>({...box(l),words:(l.words||[]).map(box).filter(w=>w.text)})).filter(l=>l.text);
+  }finally{if(input!==canvas)input.width=input.height=1}
 }
 async function readMissingCells(worker,canvas,lines,catalog,progress){
   const grid=subskillGrid({lines},catalog);if(!grid||grid.every(c=>c.hit))return;

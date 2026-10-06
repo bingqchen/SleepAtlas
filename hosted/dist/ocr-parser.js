@@ -2,6 +2,9 @@ const UNLOCKS=[10,25,50,70,80];
 const normalize=s=>String(s).normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const has=(text,name)=>` ${normalize(text)} `.includes(` ${normalize(name)} `);
 const levelOf=line=>{const m=line.text.match(/\b(?:Lv\.?|Level)\s*(\d{1,3})\b/i);return m?Number(m[1]):null};
+// Tiny green header text can lose its L. Accept v.52 only at the portrait's
+// level position; never apply this fallback to ingredient/subskill markers.
+const headerLevelOf=line=>levelOf(line)||(line.x>.15&&line.x<.4&&line.y<.3?Number(line.text.match(/\bv\.\s*(\d{1,3})\b/i)?.[1])||null:null);
 const cy=line=>line.y+(line.h||0)/2;
 const sameRow=(a,b)=>Math.abs(cy(a)-cy(b))<Math.max(.018,((a.h||0)+(b.h||0))/2);
 const dedupe=hits=>hits.filter((h,i)=>!hits.slice(0,i).some(p=>p.name===h.name&&Math.abs(p.line.x-h.line.x)<.15&&Math.abs(cy(p.line)-cy(h.line))<.025));
@@ -50,7 +53,7 @@ export function parseOCR(images,catalog){
     const headers=ls.filter(l=>l.y<.4&&p&&has(l.text,p.displayName));
     const headerLevel=headers.map(levelOf).find(l=>l>=1&&l<=100);
     const nearby=ls.filter(l=>l.x<.6&&l.y<.4&&headers.some(h=>sameRow(h,l))).map(levelOf).find(l=>l>=1&&l<=100);
-    const generic=ls.filter(l=>l.x<.5&&l.y<.3&&!/^\W*Lv\.?\s*(10|25|50|70|80)\W*$/i.test(l.text)).map(levelOf).find(l=>l>=1&&l<=100);
+    const generic=ls.filter(l=>l.x<.5&&l.y<.3&&!/^\W*Lv\.?\s*(10|25|50|70|80)\W*$/i.test(l.text)).map(headerLevelOf).find(l=>l>=1&&l<=100);
     if(fields.level===undefined&&(headerLevel||nearby||generic))fields.level=headerLevel||nearby||generic;
     {
       const labels=p?[p.skillLabel,p.skill.name]:[...new Set(catalog.species.map(s=>s.skillLabel))];

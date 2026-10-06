@@ -1,4 +1,4 @@
-const CACHE='sleep-atlas-hosted-v7';
+const CACHE='sleep-atlas-hosted-v8';
 const SHELL=['/','/index.html','/style.css','/app.js','/collection.js','/local-api.js','/build-identity.js','/engine.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
 // Never cache an authentication redirect as the app shell.
 const usable=response=>response.ok&&!response.redirected&&response.type!=='opaque';

@@ -39,15 +39,23 @@ export function confidentSpriteMatch(ranked){
   return best&&next&&best.score<.020&&next.score-best.score>Math.max(.0015,best.score*.60)?best.species:null;
 }
 let references;
-export async function identifySprite(canvas,lines){
+export function portraitRegion(lines,w,h){
   // Anchor the small portrait beside the Pokémon level. A right-side ingredient
   // unlock marker cannot anchor this crop; keep an uncertain picture unselected.
-  const level=lines.find(l=>l.x>.15&&l.x<.40&&l.y<.32&&/\b(?:Lv\.?|Level)\s*\d{1,3}\b/i.test(l.text));
+  const headers=lines.filter(l=>l.y<.32&&/\b(?:Lv\.?|Level|v\.)\s*\d{1,3}\b/i.test(l.text));
+  // Segmentation can merge the portrait with its level/nickname. The level's
+  // word box stays accurate even when the complete line starts in the picture.
+  const words=headers.flatMap(l=>(l.words||[]).filter(w=>/^(?:Lv\.?|Level|v\.)(?:\s*\d{1,3})?$/i.test(w.text.trim())));
+  const level=[...words,...headers].find(l=>l.x>.15&&l.x<.40&&l.y<.32);
   if(!level)return null;
-  const w=canvas.width,h=canvas.height,x=Math.max(0,Math.round((level.x-.155)*w)),y=Math.max(0,Math.round(level.y*h-.09*w));
+  const x=Math.max(0,Math.round((level.x-.155)*w)),y=Math.max(0,Math.round(level.y*h-.09*w));
   const width=Math.min(Math.round(.137*w),w-x),height=Math.min(Math.round(.135*w),h-y);
   if(width<=0||height<=0)return null;
-  const descriptor=spriteDescriptor(canvas.getContext('2d').getImageData(x,y,width,height));if(!descriptor)return null;
+  return {x,y,width,height};
+}
+export async function identifySprite(canvas,lines){
+  const region=portraitRegion(lines,canvas.width,canvas.height);if(!region)return null;
+  const descriptor=spriteDescriptor(canvas.getContext('2d').getImageData(region.x,region.y,region.width,region.height));if(!descriptor)return null;
   if(!references)references=fetch('/sprite-features.json').then(r=>{if(!r.ok)throw Error('Picture references unavailable');return r.json()}).catch(e=>{references=null;throw e});
   const ranked=rankSprites(descriptor,(await references).entries);
   return {species:confidentSpriteMatch(ranked),candidates:ranked.slice(0,3)};
