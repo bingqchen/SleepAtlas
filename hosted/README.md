@@ -98,3 +98,9 @@ Mew's source catalog explicitly marks its 4% skill rate as a placeholder and its
 Berry Burst adds Mew's own berries to total berries, strength, and the collection summary. Berry Juice is not a Mew learned skill and produces an energy-restoring item, not berries; see the [official item description](https://www.pokemonsleep.net/en/news/333532393337353930363032353936333533/).
 
 Skill selection and rate assumptions survive edits, drafts, image-free backup exports, and restore. Different Mew skill choices do not automatically deduplicate; an explicit edit may switch the same saved Mew while retaining history. Same-species reference builds retain the selected effect and rate assumption. `node tests/mew-skills.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` covers all choices and levels, Python parity, preserved level 8 with capped effects, legacy defaults, invalid inputs, storage/history, and backup restoration.
+
+## Swipe through details (Reader v20)
+
+In saved Pokémon details, swipe left for the next Pokémon or right for the previous one. Previous/Next buttons and Left/Right arrow keys provide the same navigation. The sequence follows the collection's filters and sort at the time details opens, stops at either end, and shows the current position. Examples, single-item collections, and records outside the current filters do not offer paging. Each new Pokémon starts at the top of its details; Edit and Delete act on the displayed Pokémon.
+
+Single-finger horizontal swipes leave vertical scrolling, overflowing tables, links/buttons, text selection, pinch zoom, and Safari's edge gestures alone. Closing, editing, or deleting invalidates pending detail reads so a late response cannot reopen the dialog. `node tests/detail-navigation.mjs` covers ordered neighbors, endpoints, gesture rejection, click suppression, and asynchronous close/error handling.
