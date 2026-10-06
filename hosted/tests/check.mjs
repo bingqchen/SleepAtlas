@@ -5,7 +5,7 @@ const c=JSON.parse(fs.readFileSync(new URL('../dist/catalog.json',import.meta.ur
 const engine=new Engine(c),cases=JSON.parse(fs.readFileSync(new URL('python-golden.json',import.meta.url)));
 function compare(actual,expected,path='root'){
   if(typeof expected==='number'){assert.ok(Math.abs(actual-expected)<1e-6,`${path}: ${actual} != ${expected}`);return}
-  if(expected&&typeof expected==='object'){for(const k of Object.keys(expected)){if(k==='modelVersion')continue;compare(actual[k],expected[k],`${path}.${k}`)}return}
+  if(expected&&typeof expected==='object'){for(const k of Object.keys(expected)){if(k==='modelVersion')continue;if(k==='catalogCommit'){assert.equal(actual[k],c.commit);continue;}compare(actual[k],expected[k],`${path}.${k}`)}return}
   assert.equal(actual,expected,path);
 }
 for(const row of cases){compare(engine.calculate(engine.validate(row.build)),row.current,row.build.species);if(row.analysis)compare(engine.analyze(row.build),row.analysis,row.build.species)}

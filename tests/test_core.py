@@ -15,7 +15,7 @@ def build(species='RAICHU',level=30):
 
 class CalculationTests(unittest.TestCase):
     def test_all_catalog_species_analyze_without_missing_ingredients(self):
-        self.assertEqual(len(engine.SPECIES),247)
+        self.assertEqual(len(engine.SPECIES),249)
         for name in engine.SPECIES:
             with self.subTest(species=name):
                 result=engine.analyze(build(name,60));c=result['current']

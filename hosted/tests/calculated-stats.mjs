@@ -44,4 +44,4 @@ const restoredId=crypto.randomUUID();
 await api('/api/restore',{method:'POST',body:JSON.stringify({...backup,pokemon:[{...backup.pokemon[0],id:restoredId}]})});
 assert.deepEqual((await api('/api/pokemon/'+restoredId)).analysis.build,saved.analysis.build);
 (await database()).close();
-console.log('Passed: 247 species base stats, evolution bonuses, active subskills, preserved carry extras, independent own frequency, partial forms, source validation and backup round-trip.');
+console.log('Passed: 249 species base stats, evolution bonuses, active subskills, preserved carry extras, independent own frequency, partial forms, source validation and backup round-trip.');

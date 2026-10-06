@@ -63,7 +63,7 @@ Set `SLEEP_ATLAS_DATA=/path/to/directory` before launch to choose a different st
 
 This is an original, deterministic comparison model, **not RaenonX or a complete game simulator**.
 
-- Species data includes 247 Pokémon/forms, helping rates, berry values, ingredient slots/quantities, natures, subskills, and skill arrays from the pinned Neroli's Lab snapshot.
+- Species data includes 249 Pokémon/forms, helping rates, berry values, ingredient slots/quantities, natures, subskills, and skill arrays from the pinned Neroli's Lab snapshot.
 - Help interval uses species frequency, the level factor, nature, and active speed subskills, with a 35% speed-subskill cap.
 - A constant average energy speed multiplier (default 2.2×) approximates energy over 24 hours. Sleep duration, awake collection interval, area bonus, favorite berry, and teammate Helping Bonus are editable per individual.
 - Ingredients are sampled equally among unlocked selected slots. Expected inventory filling approximates when production becomes berry-only sneaky snacking. Skills use a capped binomial expectation per collection interval, with capacity one or two depending on specialty.
@@ -75,7 +75,7 @@ This is an original, deterministic comparison model, **not RaenonX or a complete
 
 ## Source and attribution
 
-Catalog derived from [Neroli's Lab](https://github.com/nerolis-lab/nerolis-lab), commit `ef1b1e6ce11ea809bef7b9a7249f574b1eb43561`, retrieved October 5, 2026. Source snapshot: `common/src/types/pokemon/__snapshots__/pokemon.test.ts.snap`; modifier definitions: `common/src/types/nature/nature.ts` and `common/src/types/subskill/subskills.ts`. Modified into JSON with executable fields and recursive skill implementations omitted. Frequency and berry formulas were checked against the upstream utilities. See `licenses/` for Apache 2.0 license and NOTICE.
+Catalog derived from [Neroli's Lab](https://github.com/nerolis-lab/nerolis-lab), commit `74e5068c1fa76518803caa8705798389da7f635d`, retrieved October 6, 2026. Source snapshot: `common/src/types/pokemon/__snapshots__/pokemon.test.ts.snap`; modifier definitions: `common/src/types/nature/nature.ts` and `common/src/types/subskill/subskills.ts`. Modified into JSON with executable fields and recursive skill implementations omitted. Frequency and berry formulas were checked against the upstream utilities. See `licenses/` for Apache 2.0 license and NOTICE.
 
 Pokémon is owned by its respective rights holders. This is an unofficial fan project with no affiliation.
 

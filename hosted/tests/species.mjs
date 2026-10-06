@@ -14,8 +14,8 @@ assert.equal(subskillGrid(missed,c).find(c=>!c.hit).level,50);
 const cropped={lines:missed.lines.filter(l=>l.y>.6)};assert.equal(subskillGrid(cropped,c),null);
 const refs=JSON.parse(fs.readFileSync(new URL('../dist/sprite-features.json',import.meta.url)));
 assert.equal(new Set(refs.entries.map(e=>e.species)).size,c.species.length);
-assert.equal(refs.entries.filter(e=>!e.renderSize).length,491);
-assert.equal(refs.entries.length,1473);
+assert.equal(refs.entries.filter(e=>!e.renderSize).length,495);
+assert.equal(refs.entries.length,1485);
 for(const size of [48,80])assert.equal(new Set(refs.entries.filter(e=>e.renderSize===size&&e.renderOpacity===.65).map(e=>e.species)).size,c.species.length);
 for(const species of ['SCEPTILE','MEWTWO']){const entry=refs.entries.find(e=>e.species===species&&!e.shiny),pixels=Uint8Array.from(atob(entry.pixels),x=>x.charCodeAt(0));assert.equal(confidentMatch(rankSprites(pixels,refs.entries)),species)}
 assert.equal(confidentMatch([{species:'ONE',score:.01},{species:'TWO',score:.011}]),null);
@@ -52,4 +52,4 @@ for(let y=8;y<18;y++)for(let x=25;x<39;x++)pale.set([90,175,110,255],(y*64+x)*4)
 for(let y=48;y<54;y++)for(let x=15;x<49;x++)pale.set([180,180,180,255],(y*64+x)*4);
 const outline=spriteDescriptor({width:64,height:64,data:pale});
 assert.ok([...outline.slice(18*24*3)].some((v,i,a)=>i%3===0&&v<210&&v===a[i+1]&&v===a[i+2]),'Gray shadow at the bottom must remain part of a pale sprite');
-console.log('Passed: nicknames do not block main skill reading; partial grid retains four known skills and locates the missing cell; all 247 species have sprite references; ambiguous and empty images are rejected.');
+console.log('Passed: nicknames do not block main skill reading; partial grid retains four known skills and locates the missing cell; all 249 species have sprite references; ambiguous and empty images are rejected.');

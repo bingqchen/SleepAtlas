@@ -24,7 +24,7 @@ def features(im):
  return bytes(out)
 if __name__=='__main__':
  import argparse
- parser=argparse.ArgumentParser();parser.add_argument('index',help='JSON sprite index: species, shiny, path');parser.add_argument('output');args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('index',help='JSON sprite index: species, shiny, path');parser.add_argument('output');parser.add_argument('--source-commit',required=True,help='Pinned Neroli’s Lab commit for this sprite index');args=parser.parse_args()
  entries=json.load(open(args.index));result=[];rendered=[]
  for row in entries:
   source=Image.open(row['path']).convert('RGBA');f=features(source)
@@ -38,4 +38,4 @@ if __name__=='__main__':
    f=features(background)
    if f:rendered.append({'species':row['species'],'shiny':row['shiny'],'renderSize':size,'renderOpacity':opacity,'pixels':base64.b64encode(f).decode()})
  result.extend(rendered)
- Path(args.output).write_text(json.dumps({'size':N,'sourceCommit':'ef1b1e6ce11ea809bef7b9a7249f574b1eb43561','entries':result},separators=(',',':')))
+ Path(args.output).write_text(json.dumps({'size':N,'sourceCommit':args.source_commit,'entries':result},separators=(',',':')))
