@@ -8,7 +8,7 @@ const evenRound=x=>{const n=Math.floor(x),f=x-n;return Math.abs(f-.5)<1e-10?n+(n
 // Python rounds the original IEEE-754 value, before decimal scaling. Preserve
 // that behavior at half boundaries so a help interval cannot drift by a second.
 const roundBuffer=new DataView(new ArrayBuffer(8));
-function pythonRound4(x){
+export function pythonRound4(x){
   roundBuffer.setFloat64(0,x);const bits=roundBuffer.getBigUint64(0),exp=Number((bits>>52n)&2047n)-1023-52;
   let numerator=((bits&((1n<<52n)-1n))+(1n<<52n))*10000n,denominator=1n;
   if(exp>=0)numerator<<=BigInt(exp);else denominator<<=BigInt(-exp);
@@ -38,6 +38,7 @@ export class Engine{
     if(typeof nickname!=='string'||nickname.length>80)throw Error('Name must contain at most 80 characters.');
     if(typeof notes!=='string'||notes.length>4000)throw Error('Notes must contain at most 4,000 characters.');
     const recorded=Object.hasOwn(raw,'displayedFrequencySeconds')?{displayedFrequencySeconds:raw.displayedFrequencySeconds===null?null:numeric(raw.displayedFrequencySeconds,'Displayed helping frequency (seconds)',1,86400,true)}:{};
+    if(raw.frequencySource!==undefined){if(!['recorded','calculated'].includes(raw.frequencySource))throw Error('Invalid helping frequency source.');recorded.frequencySource=raw.frequencySource}
     return {species:raw.species,nickname:nickname.trim()||p.displayName,nature:raw.nature,level,skillLevel,subskills:[...raw.subskills],ingredients:[...raw.ingredients],settings,notes,carrySize:numeric(raw.carrySize??p.carrySize,'Carry limit',1,200,true),...recorded};
   }
   calculate(build,level=build.level){

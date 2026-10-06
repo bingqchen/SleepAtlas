@@ -68,3 +68,13 @@ Run `node tests/evolution.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` t
 ## Unsaved changes (Reader v16)
 
 The Pokémon editor uses its footer Cancel button instead of a header close icon. Cancel or Escape asks whether to keep editing or discard whenever fields have changed, a screenshot import is awaiting save, or a recovery draft was resumed. Unchanged forms close directly. Discard clears the active draft; closing an unchanged form preserves any unrelated recovery draft. Saving closes directly, and controls stay disabled while the save is in progress. A browser leave warning also protects unsaved edits where supported.
+
+## Evolution stats (Reader v17)
+
+Species changes update helping frequency and carry limit immediately. Frequency uses species base seconds, level, nature, and active Helping Speed S/M; the individual detail-screen estimate excludes Helping Bonus, energy, ribbon, camp, and temporary effects. Carry uses species base inventory + five per previous evolution + active Inventory Up S/M/L. Same-family changes preserve the difference between recorded carry and that calculated baseline, including additive ribbon bonuses. Repeated selections use an anchored baseline to prevent accumulating bonuses, and draft recovery retains that anchor even if an input was temporarily incomplete. New entries calculate missing values once enough details are available. Manual readings remain editable; explicitly cleared readings stay cleared until contributing stats change.
+
+Calculated frequency is labeled and its source survives saving, export, and restore. Updating level or active speed/inventory subskills also updates the relevant stat; unrelated fields and routine assumptions do not overwrite a recorded reading. Unknown subskills contribute no bonus. Carry and frequency remain correctable when bonuses or effective nature differ from the recorded inputs.
+
+Formula sources: the pinned [Neroli’s Lab catalog and calculator](https://github.com/nerolis-lab/nerolis-lab/tree/ef1b1e6ce11ea809bef7b9a7249f574b1eb43561), [RaenonX carry-limit research](https://hackmd.io/@raenonx-pokemon-sleep/rJa1j6QlZl), and the official [version 2.9.0 update](https://www.pokemonsleep.net/en/news/323735303337343331363231373436363839/) confirming the evolution inventory bonus also applies to befriended evolved Pokémon.
+
+Run `node tests/calculated-stats.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` for all catalog species, evolution and subskill transitions, carry adjustments, partial inputs, and saved/backup frequency provenance.
