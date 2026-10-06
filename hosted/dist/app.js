@@ -6,7 +6,7 @@ import {collectionRows,specialtyCounts,specialtyLabels} from './collection.js';
 const $ = id => document.getElementById(id);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = (n, digits=1) => Number(n).toLocaleString(undefined,{maximumFractionDigits:digits});
-let catalog, records=[], editing=null, imageIds=[], pictureURLs=[], ocrText='', demo=false, online=true, saving=false;
+let catalog, records=[], editing=null, imageIds=[], pictureURLs=[], ocrText='', demo=false, online=true, saving=false, uploading=false;
 // The collection lives in IndexedDB on this device; this cache also holds form drafts.
 const unlocks=[10,25,50,70,80];
 const species = name => catalog.species.find(p=>p.name===name);
@@ -52,6 +52,7 @@ function getBuild(){
 }
 function openEditor(build={},context={}){
   if(!catalog){toast('Load the app first.');return}
+  $('import-dialog').close();
   editing=context.id||null;imageIds=context.imageIds||[];ocrText=context.text||'';demo=!!context.demo;
   pictureURLs.forEach(URL.revokeObjectURL);pictureURLs=(context.files||[]).map(f=>URL.createObjectURL(f));
   const settings={...catalog.defaults,...build.settings};const p=species(build.species);
@@ -70,15 +71,16 @@ function renderIngredientFields(selected=[]){
 }
 function saveDraft(){if($('editor').open && !saving && $('f-species'))cachePut('draft',{id:editing,build:getBuild(),imageIds})}
 async function upload(files){
-  if(!online){toast('Reload the app to restore access to device storage.');return}
+  if(uploading)return;
+  if(!online){$('upload-status').textContent='Reload the app to restore access to device storage.';return}
   if(!files.length)return;
-  if(files.length>8){toast('Choose up to 8 images for one Pokémon.');return}
-  if(files.some(f=>f.size>12*1024*1024)){toast('Each image must be smaller than 12 MB.');return}
-  $('screenshots').disabled=true;$('upload-status').textContent=`Reading ${files.length} screenshot${files.length>1?'s':''} on this device…`;
+  if(files.length>8){$('upload-status').textContent='Choose up to 8 images for one Pokémon.';return}
+  if(files.some(f=>f.size>12*1024*1024)){$('upload-status').textContent='Each image must be smaller than 12 MB.';return}
+  setUploadBusy(true);$('upload-status').textContent=`Reading ${files.length} screenshot${files.length>1?'s':''} on this device…`;
   try{
     const result=await readScreenshots(files,message=>{$('upload-status').textContent=message});
     openEditor(result.fields,{...result,files});$('upload-status').textContent='Screenshots read. Review the details before saving.';
-  }catch(error){$('upload-status').textContent=error.message;toast(error.message)}finally{$('screenshots').disabled=false;$('screenshots').value=''}
+  }catch(error){$('upload-status').textContent=error.message;toast(error.message)}finally{setUploadBusy(false);$('screenshots').value=''}
 }
 $('pokemon-form').onsubmit=async event=>{
   event.preventDefault();if(!online){$('form-status').textContent='Device storage is unavailable. Your draft is kept where possible; reload and try again.';saveDraft();return}
@@ -109,6 +111,14 @@ function renderMethod(){
 }
 function bindClose(root=document){root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close())}
 bindClose();
+function setUploadBusy(busy){
+  uploading=busy;
+  ['screenshots','choose-screenshots','manual-button','resume-draft'].forEach(id=>{if($(id))$(id).disabled=busy});
+  $('import-dialog').querySelector('[data-close]').disabled=busy;
+}
+$('add-pokemon').onclick=()=>{$('import-dialog').showModal()};
+$('choose-screenshots').onclick=()=>$('screenshots').click();
+$('import-dialog').oncancel=event=>{if(uploading)event.preventDefault()};
 $('manual-button').onclick=()=>openEditor();
 $('screenshots').onchange=e=>upload([...e.target.files]);
 $('dropzone').ondragover=e=>{e.preventDefault();$('dropzone').classList.add('dragging')};
