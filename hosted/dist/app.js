@@ -9,6 +9,7 @@ const $ = id => document.getElementById(id);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = (n, digits=1) => Number(n).toLocaleString(undefined,{maximumFractionDigits:digits});
 let catalog, records=[], editing=null, imageIds=[], pictureURLs=[], ocrText='', demo=false, online=true, saving=false, uploading=false;
+let editorBaseline='',pendingEntry=false,closingEditor=false,ownsDraft=false;
 // The collection lives in IndexedDB on this device; this cache also holds form drafts.
 const unlocks=[10,25,50,70,80];
 const species = name => catalog.species.find(p=>p.name===name);
@@ -28,7 +29,7 @@ async function boot(){
   renderCollection();renderMethod();
   if(!catalog.ocrAvailable)$('upload-status').textContent='Screenshot reading is unavailable. You can enter details manually.';
   const draft=await cacheGet('draft');
-  if(draft && !$('editor').open){$('upload-status').innerHTML='You have an unfinished review. <button class="text-button" id="resume-draft">Resume draft</button>';$('resume-draft').onclick=()=>openEditor(draft.build,{id:draft.id,imageIds:draft.imageIds||[]})}
+  if(draft && !$('editor').open){$('upload-status').innerHTML='You have an unfinished review. <button class="text-button" id="resume-draft">Resume draft</button>';$('resume-draft').onclick=()=>openEditor(draft.build,{id:draft.id,imageIds:draft.imageIds||[],resumed:true})}
 }
 async function refresh(){records=await api('/api/pokemon');connection(true);await cachePut('records',records);renderCollection()}
 function renderCollection(){
@@ -54,6 +55,7 @@ function getBuild(){
 }
 function openEditor(build={},context={}){
   if(!catalog){toast('Load the app first.');return}
+  clearTimeout(saveDraft.timer);
   const saved=context.id?records.find(row=>row.id===context.id)?.analysis.build:null;
   if(context.id&&!saved){toast('This Pokémon is no longer in the collection. Reload and try again.');return}
   // Drafts may contain a changed species. Always anchor edits to the saved one.
@@ -76,13 +78,41 @@ function openEditor(build={},context={}){
   };
   $('editor-body').onchange=()=>{invalidateFrequency();saveDraft()};
   $('editor-body').oninput=()=>{invalidateFrequency();clearTimeout(saveDraft.timer);saveDraft.timer=setTimeout(saveDraft,400)};
+  editorBaseline=editorSnapshot();
+  pendingEntry=!!context.resumed||(!editing&&!demo&&(imageIds.length>0||Object.keys(build).length>0));
+  ownsDraft=!!context.resumed;
   if(!$('editor').open)$('editor').showModal();
+  if(pendingEntry)saveDraft();
 }
 function renderIngredientFields(selected=[]){
   const p=species($('f-species').value);
   $('ingredient-fields').innerHTML=[0,30,60].map((l,i)=>`<label class="field" for="ing-${l}">Lv. ${l||1}<select id="ing-${l}" required ${p?'':'disabled'}>${options((p?.[`ingredient${l}`]||[]).map(x=>({value:x.ingredient.name,label:`${x.ingredient.longName} ×${x.amount}`})),selected?.[i]||(i===0?p?.ingredient0[0].ingredient.name:undefined),'Confirm ingredient…')}</select></label>`).join('');
 }
-function saveDraft(){if($('editor').open && !saving && $('f-species'))cachePut('draft',{id:editing,build:getBuild(),imageIds})}
+function editorSnapshot(){return JSON.stringify([...$('editor-body').querySelectorAll('input,select,textarea')].map(field=>[field.id,field.type==='checkbox'?field.checked:field.value]))}
+function hasUnsavedChanges(){return $('editor').open&&(pendingEntry||editorSnapshot()!==editorBaseline)}
+function saveDraft(){
+  if(!$('editor').open||saving||closingEditor||!$('f-species'))return;
+  if(hasUnsavedChanges()){ownsDraft=true;cachePut('draft',{id:editing,build:getBuild(),imageIds})}
+  else void clearEditorDraft();
+}
+async function clearEditorDraft(){
+  clearTimeout(saveDraft.timer);
+  // Opening and canceling a clean editor must not erase another recovery draft.
+  if(!ownsDraft)return;
+  ownsDraft=false;await cachePut('draft',null);
+  if(!ownsDraft&&$('resume-draft'))$('upload-status').textContent='';
+}
+async function finishEditorClose(){
+  if(saving||closingEditor)return;
+  closingEditor=true;$('keep-editing').disabled=$('discard-editor').disabled=true;
+  try{await clearEditorDraft();$('discard-changes').close();$('editor').close();editorBaseline='';pendingEntry=false}
+  finally{closingEditor=false;$('keep-editing').disabled=$('discard-editor').disabled=false}
+}
+function requestEditorClose(){
+  if(saving||closingEditor)return;
+  if(hasUnsavedChanges()){if(!$('discard-changes').open)$('discard-changes').showModal()}
+  else void finishEditorClose();
+}
 async function upload(files){
   if(uploading)return;
   if(!online){$('upload-status').textContent='Reload the app to restore access to device storage.';return}
@@ -96,10 +126,12 @@ async function upload(files){
   }catch(error){$('upload-status').textContent=error.message;toast(error.message)}finally{setUploadBusy(false);$('screenshots').value=''}
 }
 $('pokemon-form').onsubmit=async event=>{
-  event.preventDefault();if(!online){$('form-status').textContent='Device storage is unavailable. Your draft is kept where possible; reload and try again.';saveDraft();return}
-  clearTimeout(saveDraft.timer);saving=true;const build=getBuild();$('save-button').disabled=true;$('form-status').textContent='Calculating daily output and ratings…';
-  try{const row=await api('/api/pokemon',{method:'POST',body:JSON.stringify({build,id:editing,imageIds})});await cachePut('draft',null);$('editor').close();await refresh();await showDetails(row.id);toast(row.deduplicated?`Updated matching Pokémon${row.deduplicated>1?` and merged ${row.deduplicated} entries`:''}. Previous analyses kept in history.`:'Analysis saved to your local collection.')}
-  catch(error){$('form-status').textContent=error.message;saving=false;saveDraft()}finally{saving=false;$('save-button').disabled=false}
+  event.preventDefault();if(saving||closingEditor)return;if(!online){$('form-status').textContent='Device storage is unavailable. Your draft is kept where possible; reload and try again.';saveDraft();return}
+  clearTimeout(saveDraft.timer);const build=getBuild(),controls=[...$('pokemon-form').elements].map(field=>[field,field.disabled]);saving=true;
+  for(const [field] of controls)field.disabled=true;
+  $('form-status').textContent='Calculating daily output and ratings…';
+  try{const row=await api('/api/pokemon',{method:'POST',body:JSON.stringify({build,id:editing,imageIds})});pendingEntry=false;editorBaseline=editorSnapshot();await clearEditorDraft();$('editor').close();await refresh();await showDetails(row.id);toast(row.deduplicated?`Updated matching Pokémon${row.deduplicated>1?` and merged ${row.deduplicated} entries`:''}. Previous analyses kept in history.`:'Analysis saved to your local collection.')}
+  catch(error){$('form-status').textContent=error.message;saving=false;saveDraft()}finally{saving=false;for(const [field,disabled] of controls)field.disabled=disabled}
 };
 function pokemonStats(build){
   return `<section class="pokemon-own-stats" aria-label="Pokémon stats"><div class="frequency-stat"><h3>Helping frequency</h3><strong>${formatFrequency(build.displayedFrequencySeconds)}</strong><p class="small">${build.displayedFrequencySeconds?'From this Pokémon’s stats in game.':'Add the frequency from this Pokémon’s stats using Edit & recalculate.'}</p></div><h3>Subskills by level</h3><div class="table-wrap"><table class="subskill-levels"><thead><tr><th scope="col">Unlock level</th><th scope="col">Subskill</th><th scope="col">Status</th></tr></thead><tbody>${subskillSlots(build).map(slot=>`<tr><th scope="row">Lv. ${slot.level}</th><td>${escapeHTML(slot.name)}</td><td>${slot.unlocked?(slot.name==='Unknown'?'Unlocked':'Active'):'Locked'}</td></tr>`).join('')}</tbody></table></div></section>`;
@@ -125,8 +157,13 @@ async function showExample(){
 function renderMethod(){
   $('method-body').innerHTML=`<p><strong>Sleep Atlas is your private research notebook.</strong> Screenshots are read on your device with Tesseract.js. Pokémon, images, analysis history, and calculated results are saved in this browser’s local database. Your screenshots are not sent to a server. Each device and browser has its own collection.</p><h3>What a rating means</h3><p>Each metric receives a percentile against 1,000 deterministic, uniformly sampled builds of the same species and level, with identical ingredient slots, routine, and displayed main skill level. Each reference has one of 25 natures and five unique subskills; only unlocked subskills apply. Inventory bonuses are adjusted between builds. A score of 90 means the metric exceeds about 90% of these synthetic builds. This is not RaenonX’s rating or a rarity-weighted population percentile. Ties share a midpoint rank.</p><h3>Daily output</h3><p>Species rates, level, nature, and active subskills determine help frequency and ingredient/skill chances. A selectable average energy-speed multiplier is held constant across the day. The model estimates inventory filling between collections, berry-only sneaky snacking, and one banked skill (two for skill specialists). It does not simulate exact help timing, energy recovery, pity triggers, ribbons, camp, event bonuses, or team skill interactions.</p><p><strong>Raw strength</strong> combines berries, gathered ingredients at base value, and supported direct Charge Strength skills, with your area bonus. Recipe bonuses, critical dishes, indirect support effects, special skill modifiers, and random ingredient skill strength are excluded. Ingredient Magnet rewards appear separately. The result is useful for comparison; it is not an exact forecast of Snorlax’s final strength.</p><h3>Reading screenshots</h3><p>English text is supported. Add several detail screens for one Pokémon at a time. The reader compares the small Pokémon picture with reference sprites, so nicknames do not prevent recognition. Similar forms or uncertain pictures may still need manual species selection. Nickname text in other languages must be entered manually. The second and third ingredient icons are compared with reference pictures, including faded locked slots. A close match fills the slot only when it is valid for that species and quantity. The first ingredient comes from the species catalog. Confirm all slots; obscured or uncertain icons need manual selection. Verify subskill unlock positions, nature, level, displayed carry limit, and main skill level before saving. Uncertain or missing fields remain editable. Screenshots with no readable text still need manual entry.</p><h3>On your phone</h3><p>Open this site in Safari, tap Share, choose Add to Home Screen, enable Open as Web App if shown, then tap Add. Your Mac does not need to be running. Launch from the same app icon each time so you use the same device collection.</p><p>After the first successful online visit, the app can reopen, calculate, and save offline. Screenshot reading needs its OCR files downloaded once; an initial internet connection is recommended. Your ChatGPT sign-in may still require an internet connection.</p><h3>Saving & matching Pokémon</h3><p>Save directly after entering the details. A new entry updates a saved Pokémon when species, nature, ingredient slots, and subskill positions match, allowing level changes and subskill upgrades within the same family. Carry limit and main skill level must match or reflect those subskill bonuses. Nicknames and daily routine settings do not prevent a match. The latest entry appears in your collection; previous analyses remain in its local history.</p><h3>Backups & data</h3><p>Export regularly: clearing browser data or removing the home-screen app can remove its collection. Browser storage is not a cloud backup. Export a JSON backup on one device, then Restore it on another. Backups from the Mac app are compatible. Restore merges missing records without overwriting existing IDs and recalculates their results. Export includes Pokémon builds and settings. Screenshot images, recognized text, and past analysis versions stay on this device and are excluded from exports. Older backups containing screenshots can still be restored.</p><h3>Sources</h3><p>${catalog.species.length} Pokémon and forms from <a href="https://github.com/nerolis-lab/nerolis-lab/tree/${catalog.commit}" target="_blank" rel="noopener">Neroli’s Lab</a>, pinned to commit ${catalog.commit.slice(0,10)} and retrieved ${catalog.retrieved}. Dataset distributed under Apache 2.0; source and license notices are included with this project. Pokémon is owned by its respective rights holders. This is an unofficial fan project.</p>`;
 }
-function bindClose(root=document){root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close())}
+function bindClose(root=document){root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.dataset.close==='editor'?requestEditorClose():$(b.dataset.close).close())}
 bindClose();
+$('editor').oncancel=event=>{event.preventDefault();requestEditorClose()};
+$('keep-editing').onclick=()=>{if(!closingEditor)$('discard-changes').close()};
+$('discard-editor').onclick=()=>void finishEditorClose();
+$('discard-changes').oncancel=event=>{if(closingEditor)event.preventDefault()};
+window.addEventListener('beforeunload',event=>{if(!saving&&!closingEditor&&hasUnsavedChanges()){saveDraft();event.preventDefault();event.returnValue=''}});
 function setUploadBusy(busy){
   uploading=busy;
   ['screenshots','choose-screenshots','manual-button','resume-draft'].forEach(id=>{if($(id))$(id).disabled=busy});

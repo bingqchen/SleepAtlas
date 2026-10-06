@@ -64,3 +64,7 @@ Ingredient and carry-limit detection share the frequency parser's hour/minute/se
 Saved Pokémon can change species only within the evolution family linked in the catalog. The original saved species anchors the list, including when resuming a draft. Ancestors and branches are included; regional, size, and non-evolving event forms stay separate according to their explicit evolution links. New entries and unsaved examples retain the full species list. Ingredient selections are preserved when still legal for the selected evolution. The same family restriction is checked inside the save transaction before any record or screenshot changes.
 
 Run `node tests/evolution.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` to check family boundaries, new entries, and rejected edits preserving saved data.
+
+## Unsaved changes (Reader v16)
+
+The Pokémon editor uses its footer Cancel button instead of a header close icon. Cancel or Escape asks whether to keep editing or discard whenever fields have changed, a screenshot import is awaiting save, or a recovery draft was resumed. Unchanged forms close directly. Discard clears the active draft; closing an unchanged form preserves any unrelated recovery draft. Saving closes directly, and controls stay disabled while the save is in progress. A browser leave warning also protects unsaved edits where supported.
