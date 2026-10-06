@@ -1,0 +1,264 @@
+{
+  "build": {
+    "species": "SCEPTILE",
+    "nickname": "Legacy Sceptile",
+    "nature": "Hasty",
+    "level": 67,
+    "skillLevel": 6,
+    "subskills": [
+      "Berry Finding S",
+      "Inventory Up S",
+      "Helping Speed M",
+      "Inventory Up L",
+      "Skill Trigger S"
+    ],
+    "ingredients": [
+      "Egg",
+      "Coffee",
+      "Leek"
+    ],
+    "settings": {
+      "energyMultiplier": 2.2,
+      "sleepHours": 8.5,
+      "collectionHours": 3,
+      "areaBonus": 0,
+      "favoriteBerry": false,
+      "teamHelpingBonus": 0
+    },
+    "notes": "",
+    "carrySize": 39
+  },
+  "current": {
+    "level": 67,
+    "skillTriggers": 2.6778738171662417,
+    "strength": 33481.406938218744,
+    "ingredientCount": 16.298333746687728,
+    "randomIngredients": 0,
+    "berryCount": 201.98046104243627,
+    "berryStrength": 30903.01053949275,
+    "ingredientStrength": 2578.3963987259986,
+    "skillStrength": 0,
+    "frequencySeconds": 1716,
+    "ingredientRate": 0.107,
+    "skillRate": 0.03,
+    "activeSubskills": [
+      "Berry Finding S",
+      "Helping Speed M",
+      "Inventory Up S"
+    ],
+    "ingredients": [
+      {
+        "name": "Egg",
+        "longName": "Fancy Egg",
+        "count": 3.2596667493375455,
+        "strength": 374.8616761738177,
+        "rating": 25
+      },
+      {
+        "name": "Coffee",
+        "longName": "Rousing Coffee",
+        "count": 6.519333498675091,
+        "strength": 997.4580252972889,
+        "rating": 25
+      },
+      {
+        "name": "Leek",
+        "longName": "Large Leek",
+        "count": 6.519333498675091,
+        "strength": 1206.0766972548918,
+        "rating": 25
+      }
+    ],
+    "supportSkillExcluded": true,
+    "normalHelps": 91.39252568236108,
+    "sneakyHelps": 19.37670508686969,
+    "ratings": {
+      "skillTriggers": 27,
+      "strength": 98,
+      "ingredientCount": 25
+    }
+  },
+  "forecasts": [],
+  "ingredientAlternatives": [
+    {
+      "slots": [
+        "Egg",
+        "Egg",
+        "Egg"
+      ],
+      "ingredients": [
+        {
+          "name": "Egg",
+          "longName": "Fancy Egg",
+          "count": 22.357213368476238,
+          "strength": 2571.0795373747674
+        },
+        {
+          "name": "Coffee",
+          "longName": "Rousing Coffee",
+          "count": 0,
+          "strength": 0
+        },
+        {
+          "name": "Leek",
+          "longName": "Large Leek",
+          "count": 0,
+          "strength": 0
+        }
+      ],
+      "ingredientCount": 22.357213368476238,
+      "strength": 28218.643543869042
+    },
+    {
+      "slots": [
+        "Egg",
+        "Egg",
+        "Coffee"
+      ],
+      "ingredients": [
+        {
+          "name": "Egg",
+          "longName": "Fancy Egg",
+          "count": 9.618220183486239,
+          "strength": 1106.0953211009175
+        },
+        {
+          "name": "Coffee",
+          "longName": "Rousing Coffee",
+          "count": 9.618220183486239,
+          "strength": 1471.5876880733945
+        },
+        {
+          "name": "Leek",
+          "longName": "Large Leek",
+          "count": 0,
+          "strength": 0
+        }
+      ],
+      "ingredientCount": 19.236440366972477,
+      "strength": 28215.815229357795
+    },
+    {
+      "slots": [
+        "Egg",
+        "Egg",
+        "Leek"
+      ],
+      "ingredients": [
+        {
+          "name": "Egg",
+          "longName": "Fancy Egg",
+          "count": 9.65610504688349,
+          "strength": 1110.4520803916012
+        },
+        {
+          "name": "Coffee",
+          "longName": "Rousing Coffee",
+          "count": 0,
+          "strength": 0
+        },
+        {
+          "name": "Leek",
+          "longName": "Large Leek",
+          "count": 6.4374033645889925,
+          "strength": 1190.9196224489635
+        }
+      ],
+      "ingredientCount": 16.09350841147248,
+      "strength": 27929.72962826756
+    },
+    {
+      "slots": [
+        "Egg",
+        "Coffee",
+        "Egg"
+      ],
+      "ingredients": [
+        {
+          "name": "Egg",
+          "longName": "Fancy Egg",
+          "count": 15.969438120340172,
+          "strength": 1836.4853838391198
+        },
+        {
+          "name": "Coffee",
+          "longName": "Rousing Coffee",
+          "count": 6.387775248136069,
+          "strength": 977.3296129648185
+        },
+        {
+          "name": "Leek",
+          "longName": "Large Leek",
+          "count": 0,
+          "strength": 0
+        }
+      ],
+      "ingredientCount": 22.35721336847624,
+      "strength": 28461.379003298214
+    },
+    {
+      "slots": [
+        "Egg",
+        "Coffee",
+        "Coffee"
+      ],
+      "ingredients": [
+        {
+          "name": "Egg",
+          "longName": "Fancy Egg",
+          "count": 3.2060733944954127,
+          "strength": 368.6984403669725
+        },
+        {
+          "name": "Coffee",
+          "longName": "Rousing Coffee",
+          "count": 16.030366972477065,
+          "strength": 2452.646146788991
+        },
+        {
+          "name": "Leek",
+          "longName": "Large Leek",
+          "count": 0,
+          "strength": 0
+        }
+      ],
+      "ingredientCount": 19.236440366972477,
+      "strength": 28459.476807339448
+    },
+    {
+      "slots": [
+        "Egg",
+        "Coffee",
+        "Leek"
+      ],
+      "ingredients": [
+        {
+          "name": "Egg",
+          "longName": "Fancy Egg",
+          "count": 3.2187016822944963,
+          "strength": 370.15069346386707
+        },
+        {
+          "name": "Coffee",
+          "longName": "Rousing Coffee",
+          "count": 6.4374033645889925,
+          "strength": 984.9227147821158
+        },
+        {
+          "name": "Leek",
+          "longName": "Large Leek",
+          "count": 6.4374033645889925,
+          "strength": 1190.9196224489635
+        }
+      ],
+      "ingredientCount": 16.09350841147248,
+      "strength": 28174.35095612194
+    }
+  ],
+  "warnings": [
+    "Berry Burst triggers are estimated, but its indirect/team effects are excluded from strength."
+  ],
+  "modelVersion": "atlas-1.1-web",
+  "catalogCommit": "ef1b1e6ce11ea809bef7b9a7249f574b1eb43561",
+  "referenceCount": 1000
+}

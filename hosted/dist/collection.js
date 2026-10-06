@@ -2,6 +2,7 @@ const normalized=value=>String(value||'').normalize('NFKC').trim().toLocaleLower
 export const specialtyLabels={berry:'Berry',ingredient:'Ingredient',skill:'Skill',all:'All-rounder'};
 export function specialtyCounts(current,specialty){
   const counts={skill:{label:'skill triggers',value:current.skillTriggers,digits:2},ingredient:{label:'ingredients',value:current.ingredientCount,digits:1},berry:{label:'berries',value:current.berryCount,digits:1}};
+  if(current.berrySkill)return [counts.berry];
   return specialty==='all'?Object.values(counts):counts[specialty]?[counts[specialty]]:[];
 }
 export function collectionRows(records,species,{prefix='',specialty='',sort='recent'}={}){

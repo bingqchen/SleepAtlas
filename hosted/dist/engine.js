@@ -1,4 +1,11 @@
-// Browser port of atlas-1.1. Reference samples are identical to the Python model.
+// Browser port of atlas-1.2. Reference samples are identical to the Python model.
+export const MODEL_VERSION='atlas-1.2-web';
+export function ownSkillBerries(skill,level){
+  // Solo baselines from the pinned Neroli's Lab skill definitions. Team bonuses
+  // and Disguise's sleep-reset Great Success are deliberately excluded.
+  const amounts=skill.modifierName==='Draco Meteor'?[12,21,29,38,43,48]:skill.modifierName==='Lunar Blessing'?[5,9,13,17,21,25]:skill.selfBerryAmounts;
+  return amounts?.[level-1]||0;
+}
 const UNLOCKS=[10,25,50,70,80];
 const numeric=(value,name,min,max,integer=false)=>{
   if(typeof value==='boolean'||value===null||value===''||!['number','string'].includes(typeof value))throw Error(`${name} must be a number.`);
@@ -59,14 +66,16 @@ export class Engine{
     let normalHelps=0,overflow=0,triggers=0;
     for(const duration of intervals){const helps=duration*helpsPerHour,effective=Math.min(helps,carry/itemsPerHelp);normalHelps+=effective;overflow+=helps-effective;triggers+=skillExpectation(effective,skillRate,['skill','all'].includes(p.specialty)?2:1)}
     const quantities=new Map([...possible.keys()].map(k=>[k,0]));for(const slot of slots){const name=slot.ingredient.name;quantities.set(name,quantities.get(name)+normalHelps*ingRate/slots.length*slot.amount)}
-    const berries=(normalHelps*(1-ingRate)+overflow)*berryAmount,base=p.berry.value,berryValue=Math.floor(Math.max(base+level-1,base*1.025**(level-1))+.5),area=1+settings.areaBonus/100;
+    const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount,skillBerriesPerTrigger=ownSkillBerries(p.skill,build.skillLevel),skillBerryCount=triggers*skillBerriesPerTrigger;
+    const berries=gatheredBerryCount+skillBerryCount,base=p.berry.value,berryValue=Math.floor(Math.max(base+level-1,base*1.025**(level-1))+.5),area=1+settings.areaBonus/100;
+    const skillBerryStrength=skillBerryCount*berryValue*(settings.favoriteBerry?2:1)*area;
     const berryStrength=berries*berryValue*(settings.favoriteBerry?2:1)*area,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
     const skill=p.skill,index=build.skillLevel-1,direct=skill.strengthAmountsMean||skill.strengthAmounts,supported=!!direct&&!skill.modifierName;
     const skillStrength=supported?triggers*direct[index]*area:0,randomIngredients=skill.name==='Ingredient Magnet S'&&!skill.modifierName?triggers*skill.ingredientAmounts[index]:0;
-    return {level,skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(p.skillLabel),normalHelps,sneakyHelps:overflow};
+    return {level,skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(p.skillLabel),normalHelps,sneakyHelps:overflow};
   }
   analyze(raw){
-    const build=this.validate(raw),current=this.calculate(build),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount'];
+    const build=this.validate(raw),current=this.calculate(build),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount','berryCount'];
     const reference=Object.fromEntries(keys.map(k=>[k,[]])),ingredients=new Map();
     const inv=b=>b.subskills.reduce((n,s,i)=>n+(s&&UNLOCKS[i]<=b.level&&s.startsWith('Inventory Up')?this.subskills.get(s).amount:0),0);
     const baseCarry=Math.max(1,build.carrySize-inv(build));
@@ -76,9 +85,14 @@ export class Engine{
     const forecasts=[30,60].filter(l=>l>build.level).map(l=>this.calculate(build,l)),ingredientAlternatives=[];
     for(const s30 of p.ingredient30)for(const s60 of p.ingredient60){const variant={...build,ingredients:[build.ingredients[0],s30.ingredient.name,s60.ingredient.name]},r=this.calculate(variant,60);ingredientAlternatives.push({slots:variant.ingredients,ingredients:r.ingredients,ingredientCount:r.ingredientCount,strength:r.strength})}
     const warnings=[];if(build.subskills.some((s,i)=>!s&&UNLOCKS[i]<=build.level))warnings.push('Some unlocked subskills are unknown; those slots contribute no bonus.');
-    if(current.supportSkillExcluded)warnings.push(`${p.skillLabel} triggers are estimated, but its indirect/team effects are excluded from strength.`);
+    if(current.berrySkill){
+      warnings.push(`${p.skillLabel}: counts ${current.skillBerriesPerTrigger} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.`);
+      if(p.skill.modifierName==='Disguise')warnings.push('Disguise uses normal bursts; the sleep-reset Great Success bonus is excluded.');
+      if(p.skill.modifierName==='Draco Meteor')warnings.push('Draco Meteor assumes one Dragon species and no Latias bonus.');
+      if(p.skill.modifierName==='Lunar Blessing')warnings.push('Lunar Blessing assumes one Psychic species; energy support is excluded.');
+    }else if(current.supportSkillExcluded)warnings.push(`${p.skillLabel} triggers are estimated, but its indirect/team effects are excluded from strength.`);
     if(current.randomIngredients)warnings.push('Ingredient Magnet bonus items are shown separately. Their types and strength depend on your unlocked ingredients.');
     if(build.level>70)warnings.push('Levels above 70 are hypothetical projections, not a claim about the current in-game level cap.');
-    return {build,current,forecasts,ingredientAlternatives,warnings,modelVersion:'atlas-1.1-web',catalogCommit:this.catalog.commit,referenceCount:this.catalog.referenceBuilds.length};
+    return {build,current,forecasts,ingredientAlternatives,warnings,modelVersion:MODEL_VERSION,catalogCommit:this.catalog.commit,referenceCount:this.catalog.referenceBuilds.length};
   }
 }

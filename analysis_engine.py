@@ -13,7 +13,7 @@ SPECIES = {p['name']: p for p in CATALOG['species']}
 NATURES = {n['name']: n for n in CATALOG['natures']}
 SUBSKILLS = {s['name']: s for s in CATALOG['subskills']}
 UNLOCKS = (10, 25, 50, 70, 80)
-MODEL_VERSION = 'atlas-1.1'
+MODEL_VERSION = 'atlas-1.2'
 SAMPLE_COUNT = 1000
 DEFAULT_SETTINGS = {'energyMultiplier': 2.2, 'sleepHours': 8.5, 'collectionHours': 3, 'areaBonus': 0, 'favoriteBerry': False, 'teamHelpingBonus': 0}
 
@@ -85,6 +85,12 @@ def _skill_expectation(helps, chance, cap):
     n = math.floor(helps)
     return at(n)+(helps-n)*(at(n+1)-at(n))
 
+def own_skill_berries(skill, level):
+    # Solo baselines from the pinned Neroli's Lab definitions; no team bonuses
+    # or Disguise Great Success, which resets with sleep research.
+    amounts = {'Draco Meteor':[12,21,29,38,43,48], 'Lunar Blessing':[5,9,13,17,21,25]}.get(skill.get('modifierName'), skill.get('selfBerryAmounts', []))
+    return amounts[level-1] if 0 < level <= len(amounts) else 0
+
 def calculate(build, level=None):
     p = SPECIES[build['species']]
     level = level or build['level']
@@ -125,10 +131,14 @@ def calculate(build, level=None):
         triggers+=_skill_expectation(effective,skill_rate,2 if p['specialty'] in ('skill','all') else 1)
     quantities={name:0.0 for name in possible}
     for slot in slots:quantities[slot['ingredient']['name']]+=normal_helps*ing_rate/len(slots)*slot['amount']
-    berries=(normal_helps*(1-ing_rate)+overflow)*berry_amount
+    gathered_berries=(normal_helps*(1-ing_rate)+overflow)*berry_amount
+    skill_berries_per_trigger=own_skill_berries(p['skill'],build['skillLevel'])
+    skill_berries=triggers*skill_berries_per_trigger
+    berries=gathered_berries+skill_berries
     base=p['berry']['value']
     berry_value=math.floor(max(base+level-1,base*1.025**(level-1))+.5)
     area=1+settings['areaBonus']/100
+    skill_berry_strength=skill_berries*berry_value*(2 if settings['favoriteBerry'] else 1)*area
     berry_strength=berries*berry_value*(2 if settings['favoriteBerry'] else 1)*area
     ingredient_strength=sum(quantities[k]*v['value'] for k,v in possible.items())*area
     skill=p['skill']; skill_index=build['skillLevel']-1
@@ -137,12 +147,12 @@ def calculate(build, level=None):
     direct_supported=bool(direct) and not skill.get('modifierName')
     skill_strength=triggers*direct[skill_index]*area if direct_supported else 0.0
     random_ingredients=triggers*skill['ingredientAmounts'][skill_index] if skill.get('name')=='Ingredient Magnet S' and not skill.get('modifierName') else 0
-    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or p['skillLabel'] not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
+    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or p['skillLabel'] not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
 
 @lru_cache(maxsize=128)
 def reference_builds(serialized):
     build=json.loads(serialized);rng=random.Random(617204)
-    keys=['skillTriggers','strength','ingredientCount']
+    keys=['skillTriggers','strength','ingredientCount','berryCount']
     reference={key:[] for key in keys};reference['ingredients']={}
     original_inventory=sum(SUBSKILLS[s]['amount'] for s,u in zip(build['subskills'],UNLOCKS) if s and u<=build['level'] and s.startswith('Inventory Up'))
     base_carry=max(1,build['carrySize']-original_inventory)
@@ -165,7 +175,7 @@ def analyze(raw):
     build=validate_build(raw)
     current=calculate(build)
     reference=reference_builds(json.dumps(build,sort_keys=True))
-    current['ratings']={key:percentile(current[key],reference[key]) for key in ['skillTriggers','strength','ingredientCount']}
+    current['ratings']={key:percentile(current[key],reference[key]) for key in ['skillTriggers','strength','ingredientCount','berryCount']}
     for item in current['ingredients']:
         item['rating']=percentile(item['count'],reference['ingredients'][item['name']]) if item['count'] else None
     forecasts=[calculate(build,level) for level in (30,60) if level>build['level']]
@@ -180,7 +190,12 @@ def analyze(raw):
     warnings=[]
     if any(not s and u<=build['level'] for s,u in zip(build['subskills'],UNLOCKS)):
         warnings.append('Some unlocked subskills are unknown; those slots contribute no bonus.')
-    if current['supportSkillExcluded']:
+    if current['berrySkill']:
+        warnings.append(f'{p["skillLabel"]}: counts {current["skillBerriesPerTrigger"]} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.')
+        if p['skill'].get('modifierName')=='Disguise':warnings.append('Disguise uses normal bursts; the sleep-reset Great Success bonus is excluded.')
+        if p['skill'].get('modifierName')=='Draco Meteor':warnings.append('Draco Meteor assumes one Dragon species and no Latias bonus.')
+        if p['skill'].get('modifierName')=='Lunar Blessing':warnings.append('Lunar Blessing assumes one Psychic species; energy support is excluded.')
+    elif current['supportSkillExcluded']:
         warnings.append(f'{p["skillLabel"]} triggers are estimated, but its indirect/team effects are excluded from strength.')
     if current['randomIngredients']:
         warnings.append('Ingredient Magnet bonus items are shown separately. Their types and strength depend on your unlocked ingredients.')

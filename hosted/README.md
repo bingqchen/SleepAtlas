@@ -6,7 +6,7 @@ A private Sites-hosted web app. This directory is separate from the original Mac
 - Browser OCR: Tesseract.js 6.0.1, tesseract.js-core 6.0.0, English @tesseract.js-data/eng 1.0.0 (4.0.0_best_int), served from this site.
 - IndexedDB sleep-atlas-collection stores Pokémon, versioned analyses, metrics, and screenshot blobs on each device. The original Mac SQLite database is not uploaded.
 - JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved. JSON exports contain Pokémon builds and settings; screenshot images, OCR, and analysis histories stay local and are excluded. Older backups containing screenshots can still be restored.
-- The calculation model matches the original Python atlas-1.0 model. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
+- The calculation model matches the original Python atlas-1.2 model. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
 - Home-screen manifest, Apple touch icon, and service worker. Internet is needed for initial loading, OCR download, and potentially Sites sign-in. Offline data can be cleared by the browser; export backups regularly.
 
 Run a local static server from dist to preview. No production data or credentials belong in this source tree. Deployment identity is in .openai/hosting.json; publishing uses the Sites workflow.
@@ -17,7 +17,7 @@ Validation: `node tests/check.mjs` compares 741 species/level cases and seven co
 
 The reader combines color and contrast OCR passes, accepts combined species/level headers, locates carry values by nearby labels or the stats layout, and maps complete five-cell subskill grids. A geometrically complete grid with one unread cell preserves the other four assignments and triggers a focused OCR retry for the missing cell. Crops with uncertain grid positions remain unassigned. Ingredient icons still require manual review. Run `node tests/ocr.mjs` for the Mewtwo regression and ambiguous/partial layout checks.
 
-Model atlas-1.1 uses subskill unlock levels 10, 25, 50, 70, 80. Source: Pokémon Sleep version 3.6.0 update (June 25, 2026), https://www.pokemonsleep.net/en/news/343133383535303430313835333033303436/ . Existing saved analyses retain their original model version until edited and recalculated.
+Model atlas-1.1 introduced subskill unlock levels 10, 25, 50, 70, 80. Source: Pokémon Sleep version 3.6.0 update (June 25, 2026), https://www.pokemonsleep.net/en/news/343133383535303430313835333033303436/ . Reader v18 refreshes older analyses for display using the current model while retaining their stored history.
 
 ## Reader v3
 
@@ -78,3 +78,13 @@ Calculated frequency is labeled and its source survives saving, export, and rest
 Formula sources: the pinned [Neroli’s Lab catalog and calculator](https://github.com/nerolis-lab/nerolis-lab/tree/ef1b1e6ce11ea809bef7b9a7249f574b1eb43561), [RaenonX carry-limit research](https://hackmd.io/@raenonx-pokemon-sleep/rJa1j6QlZl), and the official [version 2.9.0 update](https://www.pokemonsleep.net/en/news/323735303337343331363231373436363839/) confirming the evolution inventory bonus also applies to befriended evolved Pokémon.
 
 Run `node tests/calculated-stats.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` for all catalog species, evolution and subskill transitions, carry adjustments, partial inputs, and saved/backup frequency provenance.
+
+## Own skill berries (Reader v18)
+
+Model atlas-1.2 adds the Pokémon's own skill-generated berries to total berry count and strength. Each trigger uses the skill's own-berry amount at its current skill level; each berry uses the Pokémon's species and level plus the selected favorite-berry and area bonuses. Berry Finding S affects gathered berries only. Skill berries are included exactly once in total strength, with separate gathered/skill amounts in the detail breakdown.
+
+Berry Burst, Disguise, Draco Meteor, and Lunar Blessing use their own-berry amounts from the pinned [Neroli's Lab skill implementations](https://github.com/nerolis-lab/nerolis-lab/tree/ef1b1e6ce11ea809bef7b9a7249f574b1eb43561/common/src/types/mainskill/mainskills). Draco Meteor assumes one Dragon species without Latias; Lunar Blessing assumes one Psychic species. Teammates' berries, additional team bonuses, energy support, and Disguise's sleep-reset Great Success bonus are excluded. Psystrike's Berry Zone and Berry Juice do not create berry counts in this model.
+
+Pokémon with a supported berry-producing skill display total berries in the collection summary. Details show skill triggers, total strength, ingredients, and total berries, including four same-species percentile ratings. Existing saved and cached analyses refresh for display without rewriting builds, timestamps, screenshots, or analysis history. Exports remain image-free.
+
+Run `node tests/berry-skills.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` for skill-level amounts, strength accounting, bonuses, summary counts, and non-destructive refresh of a real pre-v18 analysis. `node tests/check.mjs` checks the updated Python parity fixtures.

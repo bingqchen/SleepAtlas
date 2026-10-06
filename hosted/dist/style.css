@@ -60,6 +60,9 @@ body{padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left)
 .frequency-stat h3{font-size:.875rem;margin:0 0 8px}
 .frequency-stat strong{font-size:1.35rem;display:block}
 .frequency-stat .carry-value{font-size:inherit;display:inline}
+.metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.metric label{font-size:.875rem}
+@media(max-width:600px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric{padding:14px}.metric small{font-size:.75rem}}
 .frequency-stat p{margin:8px 0 0}
 .subskill-levels{width:100%}
 .subskill-levels tbody th{font-weight:600;white-space:nowrap}
