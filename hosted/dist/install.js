@@ -6,7 +6,7 @@
   get('install-button').onclick=()=>{
     const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
     get('install-status').textContent=standalone?'You’re already using the home-screen app.':'Add the moon icon to your Home Screen and open Sleep Atlas in its own window.';
-    get('install-offline-note').textContent='Open once online to cache the app. Your saved collection, calculations, and manual entry then work offline. Screenshot reading needs an initial download. Sign-in may require a connection.';
+    get('install-offline-note').textContent='After installing, open Sleep Atlas from its Home Screen icon. Choose Download for offline use in the top menu and wait for Ready for offline use. Download in that app even if you already downloaded in Safari. Sign-in may require a connection.';
     if(!get('install-dialog').open)get('install-dialog').showModal();
   };
 })();

@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v26, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v27, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -140,7 +140,17 @@ The hosted app stores Pokémon, analyses, history, and screenshot blobs in **Ind
 
 **Export backup** creates JSON containing Pokémon IDs, builds, notes, and individual settings. It leaves out screenshots, recognized text, analysis history, and collection-wide favorite berry preferences. **Restore** validates the backup, recalculates analyses, adds missing IDs, and skips IDs already present; it does not replace an existing record with the same ID. Older backups containing screenshots remain supported.
 
-Use Export and Restore to move a collection between devices. Export regularly: browser data can be cleared or evicted. The Home Screen installation and private website sign-in do not provide cloud backup. After the app and OCR resources have loaded, local calculations and saving can work offline; sign-in or missing resources may still need a connection.
+Use Export and Restore to move a collection between devices. Export regularly: browser data can be cleared or evicted. The Home Screen installation and private website sign-in do not provide cloud backup. Use the offline download option below to prepare this browser or Home Screen app before disconnecting. Sign-in may still require a connection.
+
+## Downloading for offline use
+
+While connected, open **⋮ → Download for offline use**, then choose **Download for offline use** in the dialog. The full download is about 16 MB. Keep the app open until it shows **Ready for offline use**. The download includes the app, catalog, portrait and ingredient references, English recognition data, the OCR worker, and both supported LSTM engine variants.
+
+The dialog checks that all 33 required files are present in the current caches. It reports progress, keeps successfully downloaded files after an interruption, and retries missing files. A failed download, a full device, or a sign-in response cannot produce a successful readiness result. Reopen this menu to check the files again, especially before travelling.
+
+On an iPhone or iPad, use **Add to Home Screen**, launch Sleep Atlas from its icon, and download inside that app. A download in a Safari tab may not be available in the Home Screen app’s separate storage. Once ready, the same app can open its collection, calculate, save, and read screenshots offline. Updates and sign-in may require internet. The browser can clear downloaded files; this download does not replace an exported collection backup.
+
+App updates replace the smaller app cache. The larger OCR files use a separately versioned cache and survive updates when their versions have not changed. The readiness check always examines actual cached files rather than trusting a saved success flag.
 
 ## Maintaining the catalog and implementation
 
@@ -159,7 +169,7 @@ Before publication, check species and ingredient coverage, evolution links, scre
 | Duplicate matching | [build-identity.js](../hosted/dist/build-identity.js) |
 | Temporary levels and favorites | [level-preview.js](../hosted/dist/level-preview.js), [favorite-berries.js](../hosted/dist/favorite-berries.js) |
 | Hosted and Mac catalogs | [hosted catalog](../hosted/dist/catalog.json), [Mac catalog](../catalog/pokemon.json) |
-| Offline app cache | [sw.js](../hosted/dist/sw.js) |
+| Offline downloads and cache | [offline.js](../hosted/dist/offline.js), [sw.js](../hosted/dist/sw.js) |
 
 The `/api/...` paths in the hosted JavaScript are handled by the local API function; they are not requests to a cloud Pokémon database. The original Mac edition instead uses [server.py](../server.py), [analysis_engine.py](../analysis_engine.py), Apple Vision OCR, and SQLite. See the [project README](../README.md) for Mac setup and the [hosted README](../hosted/README.md) for implementation history and test commands.
 

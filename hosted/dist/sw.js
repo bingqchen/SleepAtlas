@@ -1,10 +1,76 @@
-const CACHE='sleep-atlas-hosted-v26';
-const SHELL=['/','/index.html','/style.css','/app.js','/collection.js','/detail-navigation.js','/level-preview.js','/favorite-berries.js','/evolution.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/main-skills.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
-// Never cache an authentication redirect as the app shell.
-const usable=response=>response.ok&&!response.redirected&&response.type!=='opaque';
-self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);for(const path of SHELL){const response=await fetch(path,{cache:'reload'});if(!usable(response))throw Error('App files unavailable');await cache.put(path,response)}await self.skipWaiting()})()));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('sleep-atlas-hosted-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+const VERSION='v27',CACHE=`sleep-atlas-hosted-${VERSION}`;
+// Bump this independent cache whenever the pinned OCR files change.
+const OCR_CACHE='sleep-atlas-ocr-6.0.1-core-6.0.0-eng-1.0.0';
+const SHELL=['/','/index.html','/style.css','/app.js','/offline.js','/collection.js','/detail-navigation.js','/level-preview.js','/favorite-berries.js','/evolution.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/main-skills.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
+// OEM 1 in ocr.js uses LSTM. Include both CPU variants, each with embedded WASM.
+const OCR=['/vendor/worker.min.js','/vendor/tesseract-core-lstm.wasm.js','/vendor/tesseract-core-simd-lstm.wasm.js','/vendor/eng.traineddata.gz'];
+const FILES=[...SHELL,...OCR],cacheName=path=>OCR.includes(path)?OCR_CACHE:CACHE;
+async function usable(response,path){
+  if(!response?.ok||response.redirected||response.type==='opaque')return false;
+  const html=response.headers.get('content-type')?.includes('text/html');
+  if(path==='/'||path==='/index.html'){
+    const body=await response.clone().text();
+    return body.includes('id="collection"')&&body.includes('src="/app.js"');
+  }
+  return !html;
+}
+async function cachedFile(path){return (await caches.open(cacheName(path))).match(path)}
+async function downloadFile(path){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+  try{
+    const response=await fetch(path,{cache:'reload',redirect:'error',signal:controller.signal});
+    if(!await usable(response,path))throw Error('A file could not be downloaded. Connect and sign in, then retry.');
+    await (await caches.open(cacheName(path))).put(path,response);
+  }finally{clearTimeout(timer)}
+}
+async function offlineStatus(){
+  let complete=0;for(const path of FILES)if(await usable(await cachedFile(path),path))complete++;
+  return {version:VERSION,complete,total:FILES.length,ready:complete===FILES.length};
+}
+self.addEventListener('install',event=>event.waitUntil((async()=>{
+  for(const path of SHELL)await downloadFile(path);
+  await self.skipWaiting();
+})()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  for(const key of await caches.keys())if((key.startsWith('sleep-atlas-hosted-')&&key!==CACHE)||(key.startsWith('sleep-atlas-ocr-')&&key!==OCR_CACHE))await caches.delete(key);
+  await self.clients.claim();
+})()));
+let downloadTask=null;
+const listeners=new Set();
+const send=(port,message)=>{try{port.postMessage(message)}catch{/* Closing a tab must not interrupt other downloads. */}};
+function downloadOffline(port){
+  listeners.add(port);
+  if(!downloadTask)downloadTask=(async()=>{
+    let complete=0;
+    for(const path of FILES){
+      if(!await usable(await cachedFile(path),path))await downloadFile(path);
+      complete++;
+      for(const listener of listeners)send(listener,{kind:'progress',version:VERSION,complete,total:FILES.length});
+    }
+    const status=await offlineStatus();
+    if(!status.ready)throw Error('Some files are missing. Retry the download.');
+    return status;
+  })().finally(()=>{downloadTask=null});
+  return downloadTask.then(status=>send(port,{kind:'done',...status})).catch(error=>send(port,{kind:'error',message:error.name==='QuotaExceededError'?'There is not enough device storage. Free some space, then retry.':error.name==='AbortError'?'The download timed out. Check your connection and retry.':error.message||'Download interrupted. Connect and retry.'})).finally(()=>{listeners.delete(port);port.close()});
+}
+self.addEventListener('message',event=>{
+  const port=event.ports?.[0];if(!port)return;
+  if(event.data?.type==='atlas:offline-download')event.waitUntil(downloadOffline(port));
+  else if(event.data?.type==='atlas:offline-status')event.waitUntil(offlineStatus().then(status=>send(port,{kind:'done',...status})).catch(()=>send(port,{kind:'error',message:'Offline storage is unavailable. Try Safari or a regular browser window.'})).finally(()=>port.close()));
+});
 self.addEventListener('fetch',event=>{
-  const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||(!SHELL.includes(url.pathname)&&!url.pathname.startsWith('/vendor/')))return;
-  event.respondWith((async()=>{const cache=await caches.open(CACHE);try{const response=await fetch(event.request,{cache:'no-cache'});if(usable(response)){await cache.put(event.request,response.clone());return response}return response}catch{const cached=await cache.match(event.request);return cached||Response.error()}})());
+  const url=new URL(event.request.url);
+  if(event.request.method!=='GET'||url.origin!==self.location.origin||(!SHELL.includes(url.pathname)&&!url.pathname.startsWith('/vendor/')))return;
+  event.respondWith((async()=>{
+    const path=url.pathname,cache=await caches.open(cacheName(path));
+    if(OCR.includes(path)){const cached=await cache.match(path);if(await usable(cached,path))return cached}
+    try{
+      const response=await fetch(event.request,{cache:'no-cache'});
+      if(await usable(response,path))try{await cache.put(path,response.clone())}catch{/* Full storage must not break a successful online response. */}
+      return response; // Preserve real sign-in/permission responses.
+    }catch{
+      const cached=await cache.match(path);
+      return await usable(cached,path)?cached:Response.error();
+    }
+  })());
 });
