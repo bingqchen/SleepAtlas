@@ -4,7 +4,7 @@ import {parseOCR} from '../dist/ocr-parser.js';
 import {Engine} from '../dist/engine.js';
 const c=JSON.parse(fs.readFileSync(new URL('../dist/catalog.json',import.meta.url))),fixture=JSON.parse(fs.readFileSync(new URL('mewtwo-ocr-lines.json',import.meta.url)));
 const result=parseOCR([fixture],c);
-assert.deepEqual(result.fields,{species:'MEWTWO',nature:'Gentle',level:31,skillLevel:6,carrySize:24,subskills:['Helping Speed M','Skill Trigger M','Skill Trigger S','Inventory Up S','Skill Level Up M']});
+assert.deepEqual(result.fields,{species:'MEWTWO',nature:'Gentle',level:31,skillLevel:6,carrySize:24,displayedFrequencySeconds:1859,subskills:['Helping Speed M','Skill Trigger M','Skill Trigger S','Inventory Up S','Skill Level Up M']});
 assert.equal(result.detectedSubskills.length,5);
 const partial=parseOCR([{lines:fixture.lines.filter(l=>!l.text.includes('Helping Speed M'))}],c);
 assert.equal(partial.fields.subskills[0],'');assert.equal(partial.fields.subskills[1],'Skill Trigger M');

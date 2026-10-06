@@ -77,6 +77,13 @@ class CalculationTests(unittest.TestCase):
     def test_seeded_ratings_are_repeatable(self):
         b=build();a=engine.analyze(b);engine.reference_builds.cache_clear()
         self.assertEqual(a,engine.analyze(b))
+    def test_displayed_frequency_metadata_does_not_change_model(self):
+        b=build();recorded={**b,'displayedFrequencySeconds':1853}
+        self.assertEqual(engine.validate_build(recorded)['displayedFrequencySeconds'],1853)
+        self.assertEqual(engine.calculate(recorded),engine.calculate(b))
+        self.assertIsNone(engine.validate_build({**b,'displayedFrequencySeconds':None})['displayedFrequencySeconds'])
+        for value in [0,-1,1853.2,True,float('nan'),float('inf'),86401,'']:
+            with self.subTest(value=value),self.assertRaises(ValueError):engine.validate_build({**b,'displayedFrequencySeconds':value})
     def test_ocr_leaves_missing_details_unknown(self):
         result=engine.parse_ocr([{'lines':[{'text':'Raichu','confidence':.99,'x':.1,'y':.1},{'text':'Lv. 30','confidence':.99,'x':.1,'y':.2},{'text':'Adamant','confidence':.99,'x':.1,'y':.7}]}])
         self.assertEqual(result['fields']['species'],'RAICHU');self.assertEqual(result['fields']['level'],30)
@@ -101,7 +108,7 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(storage.restore(backup),{'added':1,'skipped':0})
         self.assertEqual(len(storage.list_pokemon()),2)
     def test_image_free_backup_preserves_local_screenshots_and_restores_build(self):
-        b=build();b['nickname']='Updated';b['notes']='Keep this helper';b['settings']['areaBonus']=25
+        b=build();b['nickname']='Updated';b['notes']='Keep this helper';b['settings']['areaBonus']=25;b['displayedFrequencySeconds']=1853
         image=(Path(__file__).parent/'fixtures/ocr-text.png').read_bytes()
         ocr={'lines':[{'text':'Raichu','confidence':.98,'x':0,'y':0}]}
         image_id=str(uuid.uuid4())

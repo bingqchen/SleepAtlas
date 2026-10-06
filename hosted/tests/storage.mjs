@@ -12,7 +12,7 @@ await savePictures([{id:imageId,filename:'fixture.png',mime:'image/png',blob:new
 await assert.rejects(post('/api/pokemon',{build:{...build,level:0}}));
 const {id}=await post('/api/pokemon',{build,imageIds:[imageId]});
 assert.equal((await api('/api/pokemon')).length,1);
-await post('/api/pokemon',{id,build:{...build,nickname:'Updated',notes:'Keep this helper',settings:{...build.settings,areaBonus:25}},imageIds:[imageId]});
+await post('/api/pokemon',{id,build:{...build,nickname:'Updated',notes:'Keep this helper',displayedFrequencySeconds:1853,settings:{...build.settings,areaBonus:25}},imageIds:[imageId]});
 const row=await api('/api/pokemon/'+id);assert.equal(row.historyCount,2);assert.equal(row.analysis.build.nickname,'Updated');assert.equal(row.screenshots.length,1);
 await assert.rejects(post('/api/pokemon',{id,build,imageIds:[crypto.randomUUID()]}));
 assert.equal((await api('/api/pokemon/'+id)).historyCount,2);

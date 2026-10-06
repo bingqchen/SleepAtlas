@@ -1,5 +1,6 @@
 import {Engine} from './engine.js';
 import {matchesProgression} from './build-identity.js';
+import {withRecordedFrequency} from './pokemon-stats.js';
 let ready,dbPromise;
 const request=r=>new Promise((resolve,reject)=>{r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
 const complete=t=>new Promise((resolve,reject)=>{t.oncomplete=()=>resolve();t.onabort=t.onerror=()=>reject(t.error||Error('Could not save to this device. Export a backup and check available storage.'))});
@@ -10,7 +11,7 @@ export function database(){
 export async function initialize(){if(!ready)ready=fetch('/catalog.json').then(r=>{if(!r.ok)throw Error('Could not load the Pokémon catalog. Connect to the internet and reload.');return r.json()}).then(c=>({catalog:c,engine:new Engine(c)})).catch(e=>{ready=null;throw e});return ready}
 async function all(store){const db=await database();return request(db.transaction(store).objectStore(store).getAll())}
 async function get(store,id){const db=await database();return request(db.transaction(store).objectStore(store).get(id))}
-const summary=row=>{const {history,...view}=row;return view};
+const summary=(row,catalog)=>{const {history,...view}=row;return {...view,analysis:{...row.analysis,build:withRecordedFrequency(row.analysis.build,row.screenshots,catalog)}}};
 const validId=id=>typeof id==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id);
 const pictureTypes=['image/png','image/jpeg','image/webp','image/heic','image/heif'];
 function decodePicture(pic){
@@ -29,7 +30,7 @@ export async function savePictures(pictures){
 export async function api(path,options={}){
   const {catalog,engine}=await initialize(),method=options.method||'GET',body=options.body?JSON.parse(options.body):{};
   if(path==='/api/catalog')return catalog;
-  if(path==='/api/pokemon'&&method==='GET')return (await all('pokemon')).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).map(summary);
+  if(path==='/api/pokemon'&&method==='GET')return (await all('pokemon')).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).map(row=>summary(row,catalog));
   if(path==='/api/analyze'&&method==='POST'){await new Promise(r=>setTimeout(r,0));return engine.analyze(body.build)}
   if(path==='/api/pokemon'&&method==='POST'){
     if(body.id&&!validId(body.id))throw Error('Invalid Pokémon ID.');
@@ -70,12 +71,12 @@ export async function api(path,options={}){
   }
   if(path.startsWith('/api/pokemon/')){
     const id=decodeURIComponent(path.slice('/api/pokemon/'.length));if(!validId(id))throw Error('Invalid Pokémon ID.');
-    if(method==='GET'){const row=await get('pokemon',id);if(!row)throw Error('This Pokémon no longer exists.');return summary(row)}
+    if(method==='GET'){const row=await get('pokemon',id);if(!row)throw Error('This Pokémon no longer exists.');return summary(row,catalog)}
     if(method==='DELETE'){const db=await database(),t=db.transaction(['pokemon','screenshots'],'readwrite'),done=complete(t),store=t.objectStore('pokemon'),r=store.get(id);r.onsuccess=()=>{for(const p of r.result?.screenshots||[])t.objectStore('screenshots').delete(p.id);store.delete(id)};await done;return {deleted:true}}
   }
   if(path==='/api/backup'){
     // Export builds only; original screenshots and OCR stay in device storage.
-    const pokemon=(await all('pokemon')).map(row=>({id:row.id,build:row.analysis.build}));
+    const pokemon=(await all('pokemon')).map(row=>({id:row.id,build:withRecordedFrequency(row.analysis.build,row.screenshots,catalog)}));
     return {format:'sleep-atlas',version:1,exportedAt:new Date().toISOString(),pokemon};
   }
   if(path==='/api/restore'&&method==='POST'){

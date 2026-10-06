@@ -7,6 +7,23 @@ const levelOf=line=>{const m=line.text.match(/\b(?:Lv\.?|Level)\s*(\d{1,3})\b/i)
 const headerLevelOf=line=>levelOf(line)||(line.x>.15&&line.x<.4&&line.y<.3?Number(line.text.match(/\bv\.\s*(\d{1,3})\b/i)?.[1])||null:null);
 const cy=line=>line.y+(line.h||0)/2;
 const sameRow=(a,b)=>Math.abs(cy(a)-cy(b))<Math.max(.018,((a.h||0)+(b.h||0))/2);
+// Require seconds so a partly read duration cannot silently become xx:00.
+export function readDisplayedFrequency(images){
+  const values=new Set();
+  const duration=/\bevery\s+(?:(\d{1,2})\s*(?:hours?|hrs?|h)\s*)?(?:(\d{1,4})\s*(?:minutes?|mins?|m)\s*)?(\d{1,2})\s*(?:seconds?|secs?|s)\b/gi;
+  for(const image of images){
+    const lines=image.lines||[],candidates=lines.map(l=>l.text);
+    for(const anchor of lines.filter(l=>/\bevery\b/i.test(l.text))){
+      const parts=lines.filter(l=>Number.isFinite(l.x)&&Number.isFinite(l.y)&&sameRow(anchor,l)&&l.x>=anchor.x-.01).sort((a,b)=>a.x-b.x);
+      candidates.push(parts.filter((l,i)=>!parts.slice(0,i).some(p=>normalize(p.text)===normalize(l.text)&&Math.abs(p.x-l.x)<.04)).map(l=>l.text).join(' '));
+    }
+    for(const text of candidates)for(const match of String(text).matchAll(duration)){
+      const hours=Number(match[1]||0),minutes=Number(match[2]||0),seconds=Number(match[3]),total=hours*3600+minutes*60+seconds;
+      if(seconds<60&&(!match[1]||minutes<60)&&total>=1&&total<=86400)values.add(total);
+    }
+  }
+  return {seconds:values.size===1?[...values][0]:null,conflict:values.size>1};
+}
 const dedupe=hits=>hits.filter((h,i)=>!hits.slice(0,i).some(p=>p.name===h.name&&Math.abs(p.line.x-h.line.x)<.15&&Math.abs(cy(p.line)-cy(h.line))<.025));
 function nameBox(line,name){
   const tokens=(line.words||[]).flatMap(word=>normalize(word.text).split(' ').filter(Boolean).map(text=>({text,word})));
@@ -87,6 +104,9 @@ export function parseOCR(images,catalog){
     if(grid&&grid.every(c=>!c.hit||!subskills[c.slot]||subskills[c.slot]===c.hit.name)){for(const c of grid)if(c.hit)subskills[c.slot]=c.hit.name;gridInferred=true}
   }
   fields.subskills=subskills;
+  const frequency=readDisplayedFrequency(images);
+  if(frequency.seconds!==null)fields.displayedFrequencySeconds=frequency.seconds;
+  if(frequency.conflict)warnings.push('The screenshots show different helping frequencies. Enter the current frequency manually.');
   if(gridInferred)warnings.push('Subskill slots were read from their grid positions. Confirm the order before saving.');
   warnings.push('Check all extracted details before saving.','Confirm ingredient matches; obscured or uncertain slots need manual selection.','Confirm the displayed main skill level and carry limit.');
   return {fields,detectedSubskills:[...detected],text,confidence:lines.length?lines.reduce((s,l)=>s+l.confidence,0)/lines.length:0,warnings};

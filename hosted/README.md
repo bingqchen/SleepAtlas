@@ -46,3 +46,9 @@ Matching happens within the IndexedDB write transaction. The new analysis replac
 Word coordinates preserve each subskill's grid position when OCR joins both cards into one line. The portrait crop also uses the level word's position, so nicknames or picture fragments merged into the header cannot shift it. Small screenshots are enlarged for text recognition while original pixels are retained for picture comparison.
 
 Portrait references include the original 491 normal/shiny entries and two compact, softened renderings per entry (48/80 pixels at 65% opacity on white), covering all 247 species. Confidence thresholds remain unchanged. Screenshot regressions cover Mewtwo, Sceptile, Gardevoir, Blastoise, and Blissey; ambiguous and solid-color regions stay unselected. Run `node tests/species.mjs` and `node tests/subskill-grid.mjs`. Rebuild descriptors with `scripts/build-sprite-features.py` using the pinned sprite index. Import screenshots of different Pokémon separately.
+
+## Pokémon details (Reader v11)
+
+Details show every subskill in its original unlock slot (10, 25, 50, 70, 80), including locked and unknown slots. Helping frequency uses the optional `build.displayedFrequencySeconds` from the Pokémon’s screenshot or manual entry; it does not alter modeled production. An unread value displays as Not recorded. Changing species, level, nature, or subskills in the editor clears the reading for reconfirmation.
+
+Existing screenshot text can recover a missing frequency only when its level, nature, species (if read), and all subskills match the saved build. Explicit null suppresses recovery. Recovery also applies to image-free exports. Restores and the Mac app preserve the optional field; neither database schema nor backup format changes. Run `node tests/pokemon-stats.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` for OCR, stored stats, legacy recovery, and unchanged production checks.

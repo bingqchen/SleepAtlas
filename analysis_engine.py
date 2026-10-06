@@ -68,7 +68,11 @@ def validate_build(raw):
     notes = raw.get('notes','')
     if not isinstance(notes,str) or len(notes)>4000:
         raise ValueError('Notes must contain at most 4,000 characters.')
-    return {'species':species,'nickname':nickname.strip() or p['displayName'],'nature':nature,'level':level,'skillLevel':skill_level,'subskills':subskills,'ingredients':ingredients,'settings':settings,'notes':notes,'carrySize':number(raw.get('carrySize',p['carrySize']),'Carry limit',1,200,True)}
+    recorded={}
+    if 'displayedFrequencySeconds' in raw:
+        value=raw['displayedFrequencySeconds']
+        recorded['displayedFrequencySeconds']=None if value is None else number(value,'Displayed helping frequency (seconds)',1,86400,True)
+    return {'species':species,'nickname':nickname.strip() or p['displayName'],'nature':nature,'level':level,'skillLevel':skill_level,'subskills':subskills,'ingredients':ingredients,'settings':settings,'notes':notes,'carrySize':number(raw.get('carrySize',p['carrySize']),'Carry limit',1,200,True),**recorded}
 
 def _skill_expectation(helps, chance, cap):
     # Expected min(Binomial(n,p), capacity), interpolated between integer n.

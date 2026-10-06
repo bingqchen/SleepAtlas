@@ -7,3 +7,13 @@ body{padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left)
 @media(display-mode:standalone){body{overscroll-behavior-y:none}footer{padding-bottom:calc(25px + env(safe-area-inset-bottom))}}
 .install-content{font-size:1rem}.install-app{display:flex;align-items:center;gap:16px;margin-bottom:22px}.install-app img{border-radius:15px}.install-app strong{font-size:1.25rem}.install-app p{font-size:.875rem;color:var(--muted);margin:4px 0 0}.install-steps{padding-left:24px;margin:24px 0}.install-steps li{padding-left:8px;margin:18px 0}.install-steps strong,.install-steps span{display:block}.install-steps span{color:var(--muted);font-size:.875rem;margin-top:5px}.install-connection{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px;margin:18px 0}.install-copy{display:flex;align-items:flex-end;gap:10px;margin:0 0 14px}.install-copy .field{flex:1;min-width:0}.install-copy input{font-size:.875rem}.install-copy .secondary{flex-shrink:0}.install-connection .small{margin:0}.install-content .notice{font-size:.875rem}.install-content .small{font-size:.875rem}
 @media(max-width:600px){.install-copy{flex-wrap:wrap}.install-copy .field{flex-basis:100%}.install-copy .secondary{min-height:44px}.install-content .install-app{margin-top:4px}footer{justify-content:flex-start;column-gap:20px}}
+
+.pokemon-own-stats{margin-bottom:28px}
+.frequency-stat{padding:18px 20px;background:#edf3e7;border:1px solid var(--line);border-radius:12px;margin-bottom:24px}
+.frequency-stat h3{font-size:.875rem;margin:0 0 8px}
+.frequency-stat strong{font-size:1.35rem;display:block}
+.frequency-stat p{margin:8px 0 0}
+.subskill-levels{width:100%}
+.subskill-levels tbody th{font-weight:600;white-space:nowrap}
+.subskill-levels th,.subskill-levels td{font-size:.875rem}
+.subskill-levels td:last-child{color:var(--muted)}

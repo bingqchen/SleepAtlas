@@ -37,7 +37,8 @@ export class Engine{
     const nickname=raw.nickname||p.displayName,notes=raw.notes??'';
     if(typeof nickname!=='string'||nickname.length>80)throw Error('Name must contain at most 80 characters.');
     if(typeof notes!=='string'||notes.length>4000)throw Error('Notes must contain at most 4,000 characters.');
-    return {species:raw.species,nickname:nickname.trim()||p.displayName,nature:raw.nature,level,skillLevel,subskills:[...raw.subskills],ingredients:[...raw.ingredients],settings,notes,carrySize:numeric(raw.carrySize??p.carrySize,'Carry limit',1,200,true)};
+    const recorded=Object.hasOwn(raw,'displayedFrequencySeconds')?{displayedFrequencySeconds:raw.displayedFrequencySeconds===null?null:numeric(raw.displayedFrequencySeconds,'Displayed helping frequency (seconds)',1,86400,true)}:{};
+    return {species:raw.species,nickname:nickname.trim()||p.displayName,nature:raw.nature,level,skillLevel,subskills:[...raw.subskills],ingredients:[...raw.ingredients],settings,notes,carrySize:numeric(raw.carrySize??p.carrySize,'Carry limit',1,200,true),...recorded};
   }
   calculate(build,level=build.level){
     const p=this.species.get(build.species),nature=this.natures.get(build.nature),active=build.subskills.filter((s,i)=>s&&level>=UNLOCKS[i]),settings=build.settings;
