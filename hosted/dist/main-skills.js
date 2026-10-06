@@ -1,0 +1,14 @@
+// Mew's learned effects from the official Versatile announcement. An unset
+// choice keeps legacy Mew records unresolved rather than guessing their skill.
+export const MEW_SKILLS=['Metronome','Charge Strength S','Charge Strength S (random)','Charge Strength M','Dream Shard Magnet S','Ingredient Magnet S','Energizing Cheer S','Charge Energy S','Energy For Everyone S','Tasty Chance S','Cooking Power-Up S','Extra Helpful S','Berry Burst'];
+export function mainSkillOptions(catalog,species){
+  if(species!=='MEW')return [];
+  return MEW_SKILLS.map(name=>({value:name,label:name==='Charge Strength S'?'Charge Strength S (fixed)':name}));
+}
+export function resolveMainSkill(catalog,build){
+  const p=catalog.species.find(p=>p.name===build.species);
+  const selected=p?.name==='MEW'&&MEW_SKILLS.includes(build.mainSkill)
+    ?catalog.species.find(p=>p.skill.name===build.mainSkill.replace(' (random)','')&&!p.skill.modifierName&&(build.mainSkill.startsWith('Charge Strength S')?Boolean(p.skill.strengthAmountsMean)===build.mainSkill.endsWith(' (random)'):true)):null;
+  const skill=selected?.skill||p?.skill,label=selected?(build.mainSkill==='Charge Strength S'?'Charge Strength S (fixed)':build.mainSkill):p?.skillLabel||'Choose a species';
+  return {skill,label,effectiveLevel:Math.min(build.skillLevel||1,skill?.RP?.length||7)};
+}

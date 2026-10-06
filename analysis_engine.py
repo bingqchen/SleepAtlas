@@ -13,7 +13,8 @@ SPECIES = {p['name']: p for p in CATALOG['species']}
 NATURES = {n['name']: n for n in CATALOG['natures']}
 SUBSKILLS = {s['name']: s for s in CATALOG['subskills']}
 UNLOCKS = (10, 25, 50, 70, 80)
-MODEL_VERSION = 'atlas-1.2'
+MODEL_VERSION = 'atlas-1.3'
+MEW_SKILLS = ('Metronome','Charge Strength S','Charge Strength S (random)','Charge Strength M','Dream Shard Magnet S','Ingredient Magnet S','Energizing Cheer S','Charge Energy S','Energy For Everyone S','Tasty Chance S','Cooking Power-Up S','Extra Helpful S','Berry Burst')
 SAMPLE_COUNT = 1000
 DEFAULT_SETTINGS = {'energyMultiplier': 2.2, 'sleepHours': 8.5, 'collectionHours': 3, 'areaBonus': 0, 'favoriteBerry': False, 'teamHelpingBonus': 0}
 
@@ -28,6 +29,16 @@ def number(value, name, low, high, integer=False):
         raise ValueError(f'{name} must be {"a whole number " if integer else ""}between {low} and {high}.')
     return int(n) if integer else n
 
+def resolve_main_skill(build):
+    p=SPECIES[build['species']]
+    selected=None
+    name=build.get('mainSkill')
+    if p['name']=='MEW' and name in MEW_SKILLS:
+        selected=next(q for q in SPECIES.values() if q['skill'].get('name')==name.replace(' (random)','') and not q['skill'].get('modifierName') and (not name.startswith('Charge Strength S') or bool(q['skill'].get('strengthAmountsMean'))==name.endswith(' (random)')))
+    skill=selected['skill'] if selected else p['skill']
+    label=('Charge Strength S (fixed)' if name=='Charge Strength S' else name) if selected else p['skillLabel']
+    return skill,label,min(build['skillLevel'],len(skill.get('RP',[1]*7)))
+
 def validate_build(raw):
     if not isinstance(raw, dict):
         raise ValueError('Expected Pokémon details.')
@@ -41,6 +52,15 @@ def validate_build(raw):
     level = number(raw.get('level'), 'Level', 1, 100, True)
     skill_max = len(p['skill'].get('RP', [1]*7))
     skill_level = number(raw.get('skillLevel'), 'Main skill level', 1, skill_max, True)
+    selected={}
+    if raw.get('mainSkill') not in (None,''):
+        if species!='MEW' or raw['mainSkill'] not in MEW_SKILLS:
+            raise ValueError('Choose a supported main skill for Mew.')
+        selected['mainSkill']=raw['mainSkill']
+    if 'mewSkillChance' in raw:
+        if species!='MEW':raise ValueError('A custom Mew skill chance is only available for Mew.')
+        selected['mewSkillChance']=number(raw['mewSkillChance'],'Assumed Mew skill chance (%)',.01,100)
+
     subskills = raw.get('subskills', [])
     if not isinstance(subskills, list) or len(subskills) != 5 or any(s and s not in SUBSKILLS for s in subskills):
         raise ValueError('Choose five valid subskill slots (or leave a slot unknown).')
@@ -72,7 +92,7 @@ def validate_build(raw):
     if 'displayedFrequencySeconds' in raw:
         value=raw['displayedFrequencySeconds']
         recorded['displayedFrequencySeconds']=None if value is None else number(value,'Displayed helping frequency (seconds)',1,86400,True)
-    return {'species':species,'nickname':nickname.strip() or p['displayName'],'nature':nature,'level':level,'skillLevel':skill_level,'subskills':subskills,'ingredients':ingredients,'settings':settings,'notes':notes,'carrySize':number(raw.get('carrySize',p['carrySize']),'Carry limit',1,200,True),**recorded}
+    return {'species':species,'nickname':nickname.strip() or p['displayName'],'nature':nature,'level':level,'skillLevel':skill_level,'subskills':subskills,'ingredients':ingredients,'settings':settings,'notes':notes,'carrySize':number(raw.get('carrySize',p['carrySize']),'Carry limit',1,200,True),**recorded,**selected}
 
 def _skill_expectation(helps, chance, cap):
     # Expected min(Binomial(n,p), capacity), interpolated between integer n.
@@ -102,7 +122,7 @@ def calculate(build, level=None):
     frequency=math.floor(round((1-.002*(level-1))*(2-nature['frequency'])*(1-speed),4)*p['frequency'])
     helps_per_hour=3600/frequency*settings['energyMultiplier']
     ing_rate=min(1,p['ingredientPercentage']/100*nature['ingredient']*(1+bonus('Ingredient Finder S')+bonus('Ingredient Finder M')))
-    skill_rate=min(.999999,p['skillPercentage']/100*nature['skill']*(1+bonus('Skill Trigger S')+bonus('Skill Trigger M')))
+    skill_rate=min(.999999,(build.get('mewSkillChance',p['skillPercentage']) if p['name']=='MEW' else p['skillPercentage'])/100*nature['skill']*(1+bonus('Skill Trigger S')+bonus('Skill Trigger M')))
     berry_amount=(2 if p['specialty'] in ('berry','all') else 1)+bonus('Berry Finding S')
     slots=[]
     possible={}
@@ -132,7 +152,8 @@ def calculate(build, level=None):
     quantities={name:0.0 for name in possible}
     for slot in slots:quantities[slot['ingredient']['name']]+=normal_helps*ing_rate/len(slots)*slot['amount']
     gathered_berries=(normal_helps*(1-ing_rate)+overflow)*berry_amount
-    skill_berries_per_trigger=own_skill_berries(p['skill'],build['skillLevel'])
+    skill,skill_label,effective_level=resolve_main_skill(build)
+    skill_berries_per_trigger=own_skill_berries(skill,effective_level)
     skill_berries=triggers*skill_berries_per_trigger
     berries=gathered_berries+skill_berries
     base=p['berry']['value']
@@ -141,13 +162,13 @@ def calculate(build, level=None):
     skill_berry_strength=skill_berries*berry_value*(2 if settings['favoriteBerry'] else 1)*area
     berry_strength=berries*berry_value*(2 if settings['favoriteBerry'] else 1)*area
     ingredient_strength=sum(quantities[k]*v['value'] for k,v in possible.items())*area
-    skill=p['skill']; skill_index=build['skillLevel']-1
+    skill_index=effective_level-1
     direct=skill.get('strengthAmountsMean') or skill.get('strengthAmounts')
     # Composite skill effects and team synergy are deliberately not converted.
     direct_supported=bool(direct) and not skill.get('modifierName')
     skill_strength=triggers*direct[skill_index]*area if direct_supported else 0.0
     random_ingredients=triggers*skill['ingredientAmounts'][skill_index] if skill.get('name')=='Ingredient Magnet S' and not skill.get('modifierName') else 0
-    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or p['skillLabel'] not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
+    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or skill.get('name') not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
 
 @lru_cache(maxsize=128)
 def reference_builds(serialized):
@@ -187,16 +208,23 @@ def analyze(raw):
             variant['ingredients']=[build['ingredients'][0],slot30['ingredient']['name'],slot60['ingredient']['name']]
             result=calculate(variant,60)
             alternatives.append({'slots':variant['ingredients'],'ingredients':result['ingredients'],'ingredientCount':result['ingredientCount'],'strength':result['strength']})
+    skill,skill_label,effective_level=resolve_main_skill(build)
     warnings=[]
     if any(not s and u<=build['level'] for s,u in zip(build['subskills'],UNLOCKS)):
         warnings.append('Some unlocked subskills are unknown; those slots contribute no bonus.')
+    if p['name']=='MEW':
+        chance=build.get('mewSkillChance',p['skillPercentage'])
+        warnings.append(f'Mew estimates are provisional: base skill chance is assumed to be {chance:g}%, and the catalog ingredient rate is unverified. Actual skill chance varies with the selected skill. Adjust the assumption in the editor.')
+        if not build.get('mainSkill'):warnings.append('Choose Mew’s current main skill in Edit & recalculate to include its modeled effect.')
+        if effective_level<build['skillLevel']:warnings.append(f'{skill_label} uses its current maximum of Lv. {effective_level}; Mew’s stored skill level remains {build["skillLevel"]}.')
+
     if current['berrySkill']:
-        warnings.append(f'{p["skillLabel"]}: counts {current["skillBerriesPerTrigger"]} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.')
+        warnings.append(f'{skill_label}: counts {current["skillBerriesPerTrigger"]} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.')
         if p['skill'].get('modifierName')=='Disguise':warnings.append('Disguise uses normal bursts; the sleep-reset Great Success bonus is excluded.')
         if p['skill'].get('modifierName')=='Draco Meteor':warnings.append('Draco Meteor assumes one Dragon species and no Latias bonus.')
         if p['skill'].get('modifierName')=='Lunar Blessing':warnings.append('Lunar Blessing assumes one Psychic species; energy support is excluded.')
     elif current['supportSkillExcluded']:
-        warnings.append(f'{p["skillLabel"]} triggers are estimated, but its indirect/team effects are excluded from strength.')
+        warnings.append(f'{skill_label} triggers are estimated, but its indirect/team effects are excluded from strength.')
     if current['randomIngredients']:
         warnings.append('Ingredient Magnet bonus items are shown separately. Their types and strength depend on your unlocked ingredients.')
     if build['level']>70:

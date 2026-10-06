@@ -7,6 +7,7 @@ function sameOrUpgrade(before,after){
 }
 export function matchesProgression(before,after,catalog){
   if(before.species!==after.species||before.nature!==after.nature||!sameArray(before.ingredients,after.ingredients))return false;
+  if((before.mainSkill||'')!==(after.mainSkill||''))return false;
   // Unknown slots must match exactly; they are never wildcards for known skills.
   if(before.subskills?.length!==5||after.subskills?.length!==5||!before.subskills.every((s,i)=>sameOrUpgrade(s,after.subskills[i])))return false;
   const activeBonus=(build,prefix)=>build.subskills.reduce((sum,name,i)=>sum+(build.level>=UNLOCKS[i]&&name.startsWith(prefix)?catalog.subskills.find(s=>s.name===name)?.amount||0:0),0);

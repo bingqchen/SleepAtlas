@@ -1,0 +1,84 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {Engine} from '../dist/engine.js';
+import {MEW_SKILLS,mainSkillOptions,resolveMainSkill} from '../dist/main-skills.js';
+import {matchesProgression} from '../dist/build-identity.js';
+import {specialtyCounts} from '../dist/collection.js';
+const catalog=JSON.parse(fs.readFileSync(new URL('../dist/catalog.json',import.meta.url)));
+const engine=new Engine(catalog),p=engine.species.get('MEW'),snapshot=JSON.stringify(p);
+const base={species:'MEW',level:30,nature:'Hardy',skillLevel:8,carrySize:26,subskills:['','','','',''],ingredients:['Egg','Herb','Tail']};
+const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,`${a} != ${b}`);
+assert.equal(mainSkillOptions(catalog,'GARDEVOIR').length,0);
+assert.equal(mainSkillOptions(catalog,'MEW').length,13);
+const legacy=engine.validate(base);assert.equal(legacy.mainSkill,undefined);assert.equal(engine.calculate(legacy).skillBerryCount,0);
+assert.throws(()=>engine.validate({...base,mainSkill:'Berry Juice'}));
+assert.throws(()=>engine.validate({...base,mainSkill:'made up'}));
+assert.throws(()=>engine.validate({...base,mewSkillChance:0}));
+const other=JSON.parse(fs.readFileSync(new URL('python-golden.json',import.meta.url)))[0].build;
+assert.throws(()=>engine.validate({...other,mainSkill:'Berry Burst'}));
+assert.throws(()=>engine.validate({...other,mewSkillChance:4}));
+const cases=[];
+for(const mainSkill of MEW_SKILLS)for(let skillLevel=1;skillLevel<=8;skillLevel++){
+ const build=engine.validate({...base,mainSkill,skillLevel}),r=engine.calculate(build),chosen=resolveMainSkill(catalog,build);
+ assert.equal(build.skillLevel,skillLevel);
+ assert.ok(chosen.skill.name!=='Versatile');
+ assert.ok(Number.isFinite(r.strength));
+ close(r.skillRate,engine.calculate(legacy).skillRate);
+ close(r.gatheredBerryCount,engine.calculate(legacy).gatheredBerryCount);
+ if(mainSkill==='Berry Burst'){
+  close(r.skillBerriesPerTrigger,[11,14,21,24,27,30][Math.min(6,skillLevel)-1]);
+  close(r.skillBerryCount,r.skillTriggers*r.skillBerriesPerTrigger);
+  close(r.strength,r.berryStrength+r.ingredientStrength+r.skillStrength);
+  assert.deepEqual(specialtyCounts(r,'all').map(m=>m.label),['berries']);
+ }
+ cases.push({build,current:r});
+}
+const fixed=engine.calculate(engine.validate({...base,mainSkill:'Charge Strength S'}));
+const random=engine.calculate(engine.validate({...base,mainSkill:'Charge Strength S (random)'}));
+close(fixed.skillStrength,fixed.skillTriggers*3212);close(random.skillStrength,random.skillTriggers*4015);
+const berry=engine.validate({...base,mainSkill:'Berry Burst',mewSkillChance:5.5});
+// Native species inputs can fire before onchange creates Mew's selector.
+const fields=new Map([['f-species',{value:'MEW'}],['f-mewSkillChance',{value:'4'}]]);
+const lookup=id=>id==='f-mainSkill'?null:fields.get(id)||{value:'',checked:false};
+const hostedSource=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
+const hostedGet=hostedSource.slice(hostedSource.indexOf('function getBuild(){'),hostedSource.indexOf('function openEditor('));
+const transitional=new Function('$','unlocks',hostedGet+';return getBuild();')(lookup,[10,25,50,70,80]);
+assert.equal(transitional.mainSkill,'');assert.equal(transitional.mewSkillChance,4);
+// Older Mac UI must preserve fields from a restored hosted backup on edit.
+const macSource=fs.readFileSync(new URL('../../web/app.js',import.meta.url),'utf8');
+const macGet=macSource.slice(macSource.indexOf('function getBuild(){'),macSource.indexOf('function openEditor('));
+const macBuild=()=>new Function('$','unlocks','editorMewSelection',macGet+';return getBuild();')(lookup,[10,25,50,70,80],{mainSkill:'Berry Burst',mewSkillChance:5.5});
+assert.equal(macBuild().mainSkill,'Berry Burst');assert.equal(macBuild().mewSkillChance,5.5);
+fields.get('f-species').value='RAICHU';assert.equal(macBuild().mainSkill,undefined);fields.get('f-species').value='MEW';
+const analysis=engine.analyze(berry);
+assert.equal(analysis.build.skillLevel,8);assert.equal(analysis.current.skillBerriesPerTrigger,30);
+assert.ok(analysis.warnings.some(w=>w.includes('5.5%')));
+assert.ok(analysis.warnings.some(w=>w.includes('Lv. 6')));
+assert.ok(analysis.current.ratings.berryCount>=0);
+for(const f of analysis.forecasts)close(f.skillBerryCount,f.skillTriggers*30);
+assert.equal(JSON.stringify(p),snapshot,'Selection must not mutate shared species data');
+assert.equal(matchesProgression(legacy,berry,catalog),false);
+assert.equal(matchesProgression(berry,{...berry,mainSkill:'Metronome'},catalog),false);
+assert.equal(matchesProgression(berry,{...berry,level:31},catalog),true);
+const py=spawnSync('python3',['-c','import sys,json,analysis_engine as e; print(json.dumps([e.calculate(e.validate_build(b)) for b in json.load(sys.stdin)]))'],{cwd:new URL('../../',import.meta.url),input:JSON.stringify(cases.map(c=>c.build)),encoding:'utf8'});
+assert.equal(py.status,0,py.stderr);
+const expected=JSON.parse(py.stdout);
+for(let i=0;i<cases.length;i++)for(const key of ['strength','skillStrength','randomIngredients','skillBerryCount','berryCount','skillRate'])close(cases[i].current[key],expected[i][key]);
+
+await import(process.argv[2]);globalThis.fetch=async()=>new Response(JSON.stringify(catalog));
+const {api,database}=await import('../dist/local-api.js');
+const post=(path,body)=>api(path,{method:'POST',body:JSON.stringify(body)});
+const {id}=await post('/api/pokemon',{build:berry});
+const second=await post('/api/pokemon',{build:{...berry,mainSkill:'Ingredient Magnet S'}});
+assert.notEqual(id,second.id);assert.equal((await api('/api/pokemon')).length,2);
+await post('/api/pokemon',{id,build:{...berry,mainSkill:'Charge Strength M'}});
+let saved=await api('/api/pokemon/'+id);assert.equal(saved.historyCount,2);assert.equal(saved.analysis.build.mainSkill,'Charge Strength M');assert.equal(saved.analysis.build.skillLevel,8);
+await post('/api/pokemon',{id,build:berry});
+const backup=await api('/api/backup');assert.equal(backup.pokemon.find(p=>p.id===id).build.mainSkill,'Berry Burst');
+assert.equal(backup.pokemon.find(p=>p.id===id).build.mewSkillChance,5.5);
+assert.ok(backup.pokemon.every(p=>!p.screenshots));
+const restoredId=crypto.randomUUID();await post('/api/restore',{...backup,pokemon:[{id:restoredId,build:berry}]});
+saved=await api('/api/pokemon/'+restoredId);assert.deepEqual(saved.analysis.build,berry);assert.equal(saved.analysis.current.skillBerriesPerTrigger,30);
+(await database()).close();
+console.log('Passed: all Mew skill choices and levels, capped effects, rate assumptions, Python parity, no catalog mutation, dedupe, editing/history and image-free backup restore.');

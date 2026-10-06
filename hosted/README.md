@@ -6,7 +6,7 @@ A private Sites-hosted web app. This directory is separate from the original Mac
 - Browser OCR: Tesseract.js 6.0.1, tesseract.js-core 6.0.0, English @tesseract.js-data/eng 1.0.0 (4.0.0_best_int), served from this site.
 - IndexedDB sleep-atlas-collection stores Pokémon, versioned analyses, metrics, and screenshot blobs on each device. The original Mac SQLite database is not uploaded.
 - JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved. JSON exports contain Pokémon builds and settings; screenshot images, OCR, and analysis histories stay local and are excluded. Older backups containing screenshots can still be restored.
-- The calculation model matches the original Python atlas-1.2 model. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
+- The calculation model matches the original Python atlas-1.3 model. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
 - Home-screen manifest, Apple touch icon, and service worker. Internet is needed for initial loading, OCR download, and potentially Sites sign-in. Offline data can be cleared by the browser; export backups regularly.
 
 Run a local static server from dist to preview. No production data or credentials belong in this source tree. Deployment identity is in .openai/hosting.json; publishing uses the Sites workflow.
@@ -88,3 +88,13 @@ Berry Burst, Disguise, Draco Meteor, and Lunar Blessing use their own-berry amou
 Pokémon with a supported berry-producing skill display total berries in the collection summary. Details show skill triggers, total strength, ingredients, and total berries, including four same-species percentile ratings. Existing saved and cached analyses refresh for display without rewriting builds, timestamps, screenshots, or analysis history. Exports remain image-free.
 
 Run `node tests/berry-skills.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` for skill-level amounts, strength accounting, bonuses, summary counts, and non-destructive refresh of a real pre-v18 analysis. `node tests/check.mjs` checks the updated Python parity fixtures.
+
+## Mew's selected skill (Reader v19)
+
+Mew's editor can save its selected Versatile effect, using the [official learned-skill list](https://www.pokemonsleep.net/en/news/333832393735353631373931373030393934/). The optional `build.mainSkill` is restricted to Mew and supported choices. Old records remain unknown until selected. Skill level is retained on switching; modeled effects cap at the selected skill's maximum. Charge Strength S exposes fixed and random variants because the source does not specify which variant applies to Mew. Only the selected effect is borrowed; Mew keeps its own species traits. Supported strength, Ingredient Magnet output, and Berry Burst berries use the existing calculation rules. Candy, Metronome randomness, and indirect support effects remain excluded.
+
+Mew's source catalog explicitly marks its 4% skill rate as a placeholder and its 20% ingredient rate as uncertain. Its estimates are labeled provisional. `build.mewSkillChance` is an optional assumed base percentage, editable in the routine settings and defaulting to 4%. Actual selected-skill rates are unverified. The [pinned species definition](https://github.com/nerolis-lab/nerolis-lab/blob/ef1b1e6ce11ea809bef7b9a7249f574b1eb43561/common/src/types/pokemon/all-pokemon.ts) and [level-cap helper](https://github.com/nerolis-lab/nerolis-lab/blob/ef1b1e6ce11ea809bef7b9a7249f574b1eb43561/common/src/types/mainskill/mainskill.ts) document these modeling assumptions.
+
+Berry Burst adds Mew's own berries to total berries, strength, and the collection summary. Berry Juice is not a Mew learned skill and produces an energy-restoring item, not berries; see the [official item description](https://www.pokemonsleep.net/en/news/333532393337353930363032353936333533/).
+
+Skill selection and rate assumptions survive edits, drafts, image-free backup exports, and restore. Different Mew skill choices do not automatically deduplicate; an explicit edit may switch the same saved Mew while retaining history. Same-species reference builds retain the selected effect and rate assumption. `node tests/mew-skills.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` covers all choices and levels, Python parity, preserved level 8 with capped effects, legacy defaults, invalid inputs, storage/history, and backup restoration.
