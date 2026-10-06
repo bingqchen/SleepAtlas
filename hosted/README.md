@@ -52,3 +52,9 @@ Portrait references include the original 491 normal/shiny entries and two compac
 Details show every subskill in its original unlock slot (10, 25, 50, 70, 80), including locked and unknown slots. Helping frequency uses the optional `build.displayedFrequencySeconds` from the Pokémon’s screenshot or manual entry; it does not alter modeled production. An unread value displays as Not recorded. Changing species, level, nature, or subskills in the editor clears the reading for reconfirmation.
 
 Existing screenshot text can recover a missing frequency only when its level, nature, species (if read), and all subskills match the saved build. Explicit null suppresses recovery. Recovery also applies to image-free exports. Restores and the Mac app preserve the optional field; neither database schema nor backup format changes. Run `node tests/pokemon-stats.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` for OCR, stored stats, legacy recovery, and unchanged production checks.
+
+## Hourly stats and locked ingredients (Reader v14)
+
+Ingredient and carry-limit detection share the frequency parser's hour/minute/second abbreviations, including the game's `1 hr` format. Ingredient descriptors retain faded outlines, exclude the pale yellow backdrop, and sample only the isolated icon component. Reference descriptors use the same mask. Ambiguous icons can use the species' legal slot options only when the global best match is legal and the unchanged confidence checks pass against at least two legal candidates. No lower-ranked legal guess is substituted for an illegal best match.
+
+`node tests/ingredients.mjs` covers Treecko/Dratini hourly stats, the previous Mewtwo/Sceptile/Gardevoir icons, blank and locked regions, species constraints, quantity mismatches, and conflicting screenshots. Fixtures contain OCR stats coordinates and compact ingredient descriptors, not full screenshots.

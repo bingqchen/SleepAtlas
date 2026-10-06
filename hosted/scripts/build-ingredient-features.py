@@ -5,7 +5,8 @@ def features(im):
  im=im.convert('RGBA');w,h=im.size;px=list(im.getdata());mask=[]
  for r,g,b,a in px:
   hi=max(r,g,b);lo=min(r,g,b)
-  mask.append(a>180 and ((hi-lo>38 and lo<215) or hi<160))
+  # Retain faded outlines, excluding the bright yellow background circle.
+  mask.append(a>180 and ((hi-lo>25 and min(r,g)<225) or hi<210))
  # Use largest connected colored component so count pills and lock labels are excluded.
  seen=set();parts=[]
  for i,m in enumerate(mask):
@@ -18,6 +19,7 @@ def features(im):
   parts.append(part)
  if not parts:return None
  part=max(parts,key=len)
+ kept=set(part);mask=[i in kept for i in range(w*h)]
  x0=min(i%w for i in part);x1=max(i%w for i in part);y0=min(i//w for i in part);y1=max(i//w for i in part)
  if len(part)<30 or min(x1-x0,y1-y0)<8:return None
  scale=max(x1-x0+1,y1-y0+1)/(N-2);cx=(x0+x1)/2;cy=(y0+y1)/2;out=[]

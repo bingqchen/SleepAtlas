@@ -7,10 +7,14 @@ const levelOf=line=>{const m=line.text.match(/\b(?:Lv\.?|Level)\s*(\d{1,3})\b/i)
 const headerLevelOf=line=>levelOf(line)||(line.x>.15&&line.x<.4&&line.y<.3?Number(line.text.match(/\bv\.\s*(\d{1,3})\b/i)?.[1])||null:null);
 const cy=line=>line.y+(line.h||0)/2;
 const sameRow=(a,b)=>Math.abs(cy(a)-cy(b))<Math.max(.018,((a.h||0)+(b.h||0))/2);
+const HOUR_UNITS='(?:hours?|hrs?|h)',MINUTE_UNITS='(?:minutes?|mins?|m)',SECOND_UNITS='(?:seconds?|secs?|s)';
+const FREQUENCY_START=new RegExp(`\\bevery\\s+\\d+\\s*(?:${HOUR_UNITS}|${MINUTE_UNITS}|${SECOND_UNITS})\\b`,'i');
+// Use the same duration vocabulary to locate the stats panel and read its value.
+export const isFrequencyLine=line=>FREQUENCY_START.test(line.text);
 // Require seconds so a partly read duration cannot silently become xx:00.
 export function readDisplayedFrequency(images){
   const values=new Set();
-  const duration=/\bevery\s+(?:(\d{1,2})\s*(?:hours?|hrs?|h)\s*)?(?:(\d{1,4})\s*(?:minutes?|mins?|m)\s*)?(\d{1,2})\s*(?:seconds?|secs?|s)\b/gi;
+  const duration=new RegExp(`\\bevery\\s+(?:(\\d{1,2})\\s*${HOUR_UNITS}\\s*)?(?:(\\d{1,4})\\s*${MINUTE_UNITS}\\s*)?(\\d{1,2})\\s*${SECOND_UNITS}\\b`,'gi');
   for(const image of images){
     const lines=image.lines||[],candidates=lines.map(l=>l.text);
     for(const anchor of lines.filter(l=>/\bevery\b/i.test(l.text))){
@@ -87,7 +91,7 @@ export function parseOCR(images,catalog){
       let values=ls.filter(l=>/^\s*\d{1,3}\s*$/.test(l.text)&&labels.some(a=>l.x>a.x&&sameRow(a,l)));
       // Colored label pills can disappear during segmentation. The carry value
       // is the lone right-column number between Frequency and Main Skill.
-      if(!values.length){const frequency=ls.find(l=>/every\s+\d+\s*(?:mins?|hours?)/i.test(l.text)),end=ls.find(l=>/main\s+skill.*sub\s*skills/i.test(l.text));
+      if(!values.length){const frequency=ls.find(isFrequencyLine),end=ls.find(l=>/main\s+skill.*sub\s*skills/i.test(l.text));
         if(frequency&&end&&end.y>frequency.y)values=ls.filter(l=>/^\s*\d{1,3}\s*$/.test(l.text)&&l.x>.38&&l.y>frequency.y+.02&&l.y<end.y);
       }
       const numbers=[...new Set(values.map(l=>Number(l.text.trim())).filter(n=>n>=1&&n<=200))];if(numbers.length===1)fields.carrySize=numbers[0];

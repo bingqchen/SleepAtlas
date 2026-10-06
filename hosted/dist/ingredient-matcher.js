@@ -1,11 +1,13 @@
 // Compare ingredient pictures locally, including the faded art of locked slots.
 import {rankSprites,confidentMatch} from './sprite-matcher.js';
+import {isFrequencyLine} from './ocr-parser.js';
 const SIZE=24;
 export function ingredientDescriptor({data,width,height}){
   const mask=new Uint8Array(width*height),seen=new Uint8Array(mask.length);let largest=[];
   for(let i=0;i<mask.length;i++){
     const j=i*4,hi=Math.max(data[j],data[j+1],data[j+2]),lo=Math.min(data[j],data[j+1],data[j+2]);
-    mask[i]=data[j+3]>180&&((hi-lo>38&&lo<215)||hi<160)?1:0;
+    // Keep faded outlines without including the bright yellow background circle.
+    mask[i]=data[j+3]>180&&((hi-lo>25&&Math.min(data[j],data[j+1])<225)||hi<210)?1:0;
   }
   // Isolate the icon from the pale circle, quantity pill, and lock label.
   for(let i=0;i<mask.length;i++){
@@ -17,6 +19,9 @@ export function ingredientDescriptor({data,width,height}){
     if(part.length>largest.length)largest=part;
   }
   if(largest.length<30)return null;
+  // Nearby lock labels and quantity pills may lie within the icon's bounds.
+  // They must not reappear when sampling the isolated connected component.
+  mask.fill(0);for(const i of largest)mask[i]=1;
   let x0=width,y0=height,x1=-1,y1=-1;
   for(const i of largest){const x=i%width,y=Math.floor(i/width);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}
   if(Math.min(x1-x0,y1-y0)<8)return null;
@@ -31,7 +36,7 @@ export function ingredientDescriptor({data,width,height}){
   return out;
 }
 export function ingredientRegions(lines,width,height){
-  const frequency=lines.find(l=>/every\s+\d+\s*(?:mins?|hours?)/i.test(l.text));if(!frequency)return [];
+  const frequency=lines.find(isFrequencyLine);if(!frequency)return [];
   const counts=lines.flatMap(l=>{const m=l.text.trim().match(/^[([\s]*[x×*]\s*(\d{1,2})[)\]\s]*$/i),cx=l.x+l.w/2;
     return m&&cx>.46&&cx<.96&&frequency.y-l.y>.015&&frequency.y-l.y<.10?[{...l,cx,amount:Number(m[1]),slot:cx<.625?0:cx<.79?1:2}]:[];
   }).sort((a,b)=>b.confidence-a.confidence);
@@ -53,16 +58,24 @@ export async function identifyIngredients(canvas,lines){
   return regions.map(region=>{
     const descriptor=ingredientDescriptor(canvas.getContext('2d').getImageData(region.x,region.y,region.width,region.height));
     const ranked=rankSprites(descriptor,refs.entries),ingredient=confidentMatch(ranked);
-    return {...region,ingredient:ingredient==='Locked'?null:ingredient};
+    return {...region,ingredient:ingredient==='Locked'?null:ingredient,candidates:ranked};
   });
 }
 export function resolveIngredients(matches,p){
   const ingredients=['','',''],warnings=[],labels=[];if(!p)return {ingredients,warnings};
   for(const slot of [1,2]){
-    const hits=matches.filter(m=>m.slot===slot&&m.ingredient),names=[...new Set(hits.map(m=>m.ingredient))],level=slot===1?30:60;
+    const level=slot===1?30:60,options=p[`ingredient${level}`],legal=new Set(options.map(o=>o.ingredient.name));
+    const hits=matches.filter(m=>m.slot===slot).map(m=>{
+      // A pale icon can resemble an ingredient this species cannot gather.
+      // Only disambiguate an already-best legal match, using the same score
+      // and margin checks with at least two legal candidates.
+      const candidates=m.candidates||[],best=candidates[0];
+      const contextual=!m.ingredient&&best&&legal.has(best.species)?confidentMatch(candidates.filter(c=>legal.has(c.species))):null;
+      return {...m,ingredient:m.ingredient||contextual};
+    }).filter(m=>m.ingredient),names=[...new Set(hits.map(m=>m.ingredient))];
     if(names.length>1){warnings.push(`The screenshots disagree on the Lv. ${level} ingredient. Confirm that slot manually.`);continue}
     if(!names.length)continue;
-    const option=p[`ingredient${level}`].find(o=>o.ingredient.name===names[0]);
+    const option=options.find(o=>o.ingredient.name===names[0]);
     if(!option||hits.some(m=>m.amount!=null&&m.amount!==option.amount)){warnings.push(`The Lv. ${level} icon or quantity does not match this species’ options. Confirm it manually.`);continue}
     ingredients[slot]=option.ingredient.name;labels.push(`Lv. ${level}: ${option.ingredient.longName} ×${option.amount}`);
   }
