@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v27, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v28, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -146,7 +146,7 @@ Use Export and Restore to move a collection between devices. Export regularly: b
 
 While connected, open **⋮ → Download for offline use**, then choose **Download for offline use** in the dialog. The full download is about 16 MB. Keep the app open until it shows **Ready for offline use**. The download includes the app, catalog, portrait and ingredient references, English recognition data, the OCR worker, and both supported LSTM engine variants.
 
-The dialog checks that all 33 required files are present in the current caches. It reports progress, keeps successfully downloaded files after an interruption, and retries missing files. A failed download, a full device, or a sign-in response cannot produce a successful readiness result. Reopen this menu to check the files again, especially before travelling.
+The dialog checks that all 32 required files are present in the current caches. Setup waits for the offline worker to activate before downloading. Failed setup can be retried without clearing the collection. It reports progress, keeps successfully downloaded files after an interruption, and retries missing files. A failed download, a full device, or a sign-in response cannot produce a successful readiness result. Reopen this menu to check the files again, especially before travelling.
 
 On an iPhone or iPad, use **Add to Home Screen**, launch Sleep Atlas from its icon, and download inside that app. A download in a Safari tab may not be available in the Home Screen app’s separate storage. Once ready, the same app can open its collection, calculate, save, and read screenshots offline. Updates and sign-in may require internet. The browser can clear downloaded files; this download does not replace an exported collection backup.
 

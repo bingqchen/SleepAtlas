@@ -1,4 +1,4 @@
-const EXPECTED_VERSION='v27';
+const EXPECTED_VERSION='v28';
 export function offlineRequest(worker,type,onProgress=()=>{},timeout=65000){
   return new Promise((resolve,reject)=>{
     const channel=new MessageChannel();let timer;
@@ -13,18 +13,43 @@ export function offlineRequest(worker,type,onProgress=()=>{},timeout=65000){
     arm();try{worker.postMessage({type},[channel.port2])}catch(error){finish(error)}
   });
 }
-async function activeWorker(getRegistration){
-  if(!window.isSecureContext||!('serviceWorker' in navigator)||!('caches' in window))throw Error('Offline downloads need Safari or a browser with offline storage. Open Sleep Atlas at its HTTPS address.');
-  let timer;
-  try{
-    const registration=await Promise.race([getRegistration()||navigator.serviceWorker.ready,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Offline setup could not finish. Connect, reload the app, and try again.')),20000)})]);
-    if(!registration.active)throw Error('Offline setup is still installing. Wait a moment and try again.');
-    return registration.active;
-  }finally{clearTimeout(timer)}
+export async function activeWorker(getRegistration,serviceWorker=navigator.serviceWorker,timeout=20000){
+  let timer,removeListeners=()=>{},expired=false;
+  const setup=(async()=>{
+    let registration=await getRegistration();
+    const candidate=()=>registration?.installing||registration?.waiting||registration?.active;
+    // Failed installs can leave an empty registration. Start a fresh attempt.
+    if(!candidate()||candidate().state==='redundant'){
+      registration=await serviceWorker.register('/sw.js',{updateViaCache:'none'});
+      if(!candidate()&&!expired)await registration.update();
+    }
+    if(expired)return;
+    return new Promise((resolve,reject)=>{
+      const watched=new Set();let lastWorker;
+      removeListeners=()=>{registration.removeEventListener('updatefound',check);for(const worker of watched)worker.removeEventListener('statechange',check)};
+      function check(){
+        // Keep watching a pending worker even if a failed update removes it
+        // from the registration; an older active worker is not that update.
+        const worker=registration.installing||registration.waiting||lastWorker||registration.active;
+        lastWorker=worker;
+        if(!worker||worker.state==='redundant'){removeListeners();reject(Error('Offline setup failed. Check your connection and tap Retry download.'));return}
+        if(worker.state==='activated'){removeListeners();resolve(worker);return}
+        if(!watched.has(worker)){watched.add(worker);worker.addEventListener('statechange',check)}
+      }
+      registration.addEventListener('updatefound',check);check();
+    });
+  })();
+  try{return await Promise.race([setup,new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Error('Offline setup timed out. Check your connection and tap Retry download.'))},timeout)})])}
+  catch(error){if(error.name==='SecurityError')throw Error('Offline storage is blocked in this browser. Open Sleep Atlas in Safari and try again.');throw error}
+  finally{clearTimeout(timer);removeListeners()}
 }
 export function setupOffline({closeMenu,getRegistration}){
   const $=id=>document.getElementById(id);let busy=false,ready=false,checking=false;
   const status=message=>{$('offline-status').textContent=message};
+  const worker=()=>{
+    if(!window.isSecureContext||!('serviceWorker' in navigator)||!('caches' in window))throw Error('Offline downloads need Safari or a browser with offline storage. Open Sleep Atlas at its HTTPS address.');
+    return activeWorker(getRegistration);
+  };
   function showProgress(data){
     $('offline-progress').hidden=false;$('offline-progress').max=data.total;$('offline-progress').value=data.complete;
     status(`Saving files: ${data.complete} of ${data.total}. Keep this app open until complete.`);
@@ -36,7 +61,7 @@ export function setupOffline({closeMenu,getRegistration}){
   }
   async function check(){
     checking=true;$('offline-download').disabled=true;status('Checking downloaded files…');
-    try{showStatus(await offlineRequest(await activeWorker(getRegistration),'atlas:offline-status',undefined,20000))}
+    try{showStatus(await offlineRequest(await worker(),'atlas:offline-status',undefined,20000))}
     catch(error){ready=false;status(error.message);$('offline-download').textContent='Try again'}
     finally{checking=false;$('offline-download').disabled=false}
   }
@@ -46,10 +71,10 @@ export function setupOffline({closeMenu,getRegistration}){
     if(ready){await check();return}
     busy=true;$('offline-download').disabled=true;status('Preparing the offline download…');
     try{navigator.storage?.persist?.().catch(()=>{})}catch{}
-    try{showStatus(await offlineRequest(await activeWorker(getRegistration),'atlas:offline-download',showProgress))}
+    try{showStatus(await offlineRequest(await worker(),'atlas:offline-download',showProgress))}
     catch(error){ready=false;$('offline-progress').hidden=true;status(error.message);$('offline-download').textContent='Retry download'}
     finally{busy=false;$('offline-download').disabled=false}
   };
   $('offline-install').onclick=()=>{$('offline-dialog').close();$('install-button').click()};
-  return {isBusy:()=>busy};
+  return {isBusy:()=>busy||checking};
 }
