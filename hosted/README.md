@@ -58,3 +58,9 @@ Existing screenshot text can recover a missing frequency only when its level, na
 Ingredient and carry-limit detection share the frequency parser's hour/minute/second abbreviations, including the game's `1 hr` format. Ingredient descriptors retain faded outlines, exclude the pale yellow backdrop, and sample only the isolated icon component. Reference descriptors use the same mask. Ambiguous icons can use the species' legal slot options only when the global best match is legal and the unchanged confidence checks pass against at least two legal candidates. No lower-ranked legal guess is substituted for an illegal best match.
 
 `node tests/ingredients.mjs` covers Treecko/Dratini hourly stats, the previous Mewtwo/Sceptile/Gardevoir icons, blank and locked regions, species constraints, quantity mismatches, and conflicting screenshots. Fixtures contain OCR stats coordinates and compact ingredient descriptors, not full screenshots.
+
+## Species edits (Reader v15)
+
+Saved Pokémon can change species only within the evolution family linked in the catalog. The original saved species anchors the list, including when resuming a draft. Ancestors and branches are included; regional, size, and non-evolving event forms stay separate according to their explicit evolution links. New entries and unsaved examples retain the full species list. Ingredient selections are preserved when still legal for the selected evolution. The same family restriction is checked inside the save transaction before any record or screenshot changes.
+
+Run `node tests/evolution.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` to check family boundaries, new entries, and rejected edits preserving saved data.

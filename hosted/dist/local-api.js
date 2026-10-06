@@ -1,6 +1,7 @@
 import {Engine} from './engine.js';
 import {matchesProgression} from './build-identity.js';
 import {withRecordedFrequency} from './pokemon-stats.js';
+import {speciesChoices} from './evolution.js';
 let ready,dbPromise;
 const request=r=>new Promise((resolve,reject)=>{r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
 const complete=t=>new Promise((resolve,reject)=>{t.oncomplete=()=>resolve();t.onabort=t.onerror=()=>reject(t.error||Error('Could not save to this device. Export a backup and check available storage.'))});
@@ -44,6 +45,7 @@ export async function api(path,options={}){
     const previous=store.getAll();previous.onsuccess=()=>{
       const rows=previous.result,explicit=body.id?rows.find(row=>row.id===body.id):null;
       if(body.id&&!explicit){abort('This Pokémon no longer exists.');return}
+      if(explicit&&!speciesChoices(catalog,explicit.analysis.build.species).some(p=>p.name===analysis.build.species)){abort('Choose a species in this Pokémon’s evolution family. Add an unrelated Pokémon as a new entry.');return}
       const matches=body.id?[explicit]:rows.filter(row=>matchesProgression(row.analysis.build,analysis.build,catalog));
       matches.sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id));
       const old=matches[0],id=body.id||old?.id||crypto.randomUUID(),owners=new Set(matches.map(row=>row.id));

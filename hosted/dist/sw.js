@@ -1,5 +1,5 @@
-const CACHE='sleep-atlas-hosted-v14';
-const SHELL=['/','/index.html','/style.css','/app.js','/collection.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
+const CACHE='sleep-atlas-hosted-v15';
+const SHELL=['/','/index.html','/style.css','/app.js','/collection.js','/evolution.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
 // Never cache an authentication redirect as the app shell.
 const usable=response=>response.ok&&!response.redirected&&response.type!=='opaque';
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);for(const path of SHELL){const response=await fetch(path,{cache:'reload'});if(!usable(response))throw Error('App files unavailable');await cache.put(path,response)}await self.skipWaiting()})()));
