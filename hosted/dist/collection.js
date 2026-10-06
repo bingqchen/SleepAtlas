@@ -5,7 +5,7 @@ export function specialtyCounts(current,specialty){
   if(current.berrySkill)return [counts.berry];
   return specialty==='all'?Object.values(counts):counts[specialty]?[counts[specialty]]:[];
 }
-export function collectionRows(records,species,{prefix='',specialty='',sort='recent'}={}){
+export function collectionRows(records,species,{prefix='',specialty='',sort='strength'}={}){
   const query=normalized(prefix),catalog=new Map(species.map(p=>[p.name,p]));
   const rows=records.filter(row=>{
     const build=row.analysis.build,p=catalog.get(build.species);
