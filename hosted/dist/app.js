@@ -126,7 +126,19 @@ function setUploadBusy(busy){
   ['screenshots','choose-screenshots','manual-button','resume-draft'].forEach(id=>{if($(id))$(id).disabled=busy});
   $('import-dialog').querySelector('[data-close]').disabled=busy;
 }
-$('add-pokemon').onclick=()=>{$('import-dialog').showModal()};
+function closeActions(restoreFocus=false){
+  $('actions-panel').hidden=true;$('actions-button').setAttribute('aria-expanded','false');
+  if(restoreFocus)$('actions-button').focus();
+}
+$('actions-button').onclick=()=>{
+  if(!$('actions-panel').hidden){closeActions(true);return}
+  $('actions-panel').hidden=false;$('actions-button').setAttribute('aria-expanded','true');$('add-pokemon').focus();
+};
+document.addEventListener('pointerdown',event=>{if(!$('collection-actions').contains(event.target))closeActions()});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('actions-panel').hidden){event.preventDefault();closeActions(true)}});
+$('collection-actions').addEventListener('focusout',event=>{if(!$('collection-actions').contains(event.relatedTarget))closeActions()});
+$('add-pokemon').onclick=()=>{closeActions(true);$('import-dialog').showModal()};
+$('restore-button').onclick=()=>{closeActions(true);$('restore-file').click()};
 $('choose-screenshots').onclick=()=>$('screenshots').click();
 $('import-dialog').oncancel=event=>{if(uploading)event.preventDefault()};
 $('manual-button').onclick=()=>openEditor();
@@ -136,7 +148,7 @@ $('dropzone').ondragleave=()=>$('dropzone').classList.remove('dragging');
 $('dropzone').ondrop=e=>{e.preventDefault();$('dropzone').classList.remove('dragging');upload([...e.dataTransfer.files])};
 $('search').oninput=renderCollection;$('sort').onchange=renderCollection;$('type-filter').onchange=renderCollection;
 $('method-button').onclick=$('about-button').onclick=()=>{if(!catalog){toast('Connect to load the notebook.');return}$('method').showModal()};
-$('export-button').onclick=async()=>{try{const data=await api('/api/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`sleep-atlas-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup exported.')}catch(e){toast(e.message)}};
+$('export-button').onclick=async()=>{closeActions(true);try{const data=await api('/api/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`sleep-atlas-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup exported.')}catch(e){toast(e.message)}};
 $('restore-file').onchange=async event=>{const f=event.target.files[0];if(!f)return;try{if(f.size>140*1024*1024)throw new Error('Backup exceeds 140 MB.');const body=JSON.parse(await f.text());const result=await api('/api/restore',{method:'POST',body:JSON.stringify(body)});await refresh();toast(`Restored ${result.added} helpers; ${result.skipped} already present.`)}catch(e){toast(e.message)}finally{event.target.value=''}};
 window.addEventListener('online',()=>{if(!catalog)boot()});
 window.addEventListener('focus',()=>{if(catalog&&online)refresh().catch(e=>toast(e.message))});
