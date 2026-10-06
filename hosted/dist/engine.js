@@ -1,6 +1,6 @@
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
 // Browser port of atlas-1.3. Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.3-web';
+export const MODEL_VERSION='atlas-1.3.1-web';
 export function ownSkillBerries(skill,level){
   // Solo baselines from the pinned Neroli's Lab skill definitions. Team bonuses
   // and Disguise's sleep-reset Great Success are deliberately excluded.
@@ -93,7 +93,7 @@ export class Engine{
     for(const sample of this.catalog.referenceBuilds){const b={...build,...sample};b.carrySize=baseCarry+inv(b);const r=this.calculate(b);for(const key of keys)reference[key].push(r[key]);for(const item of r.ingredients){if(!ingredients.has(item.name))ingredients.set(item.name,[]);ingredients.get(item.name).push(item.count)}}
     const percentile=(value,values)=>evenRound(100*values.reduce((n,x)=>n+(x<value-1e-7?1:Math.abs(x-value)<=1e-7?.5:0),0)/values.length);
     current.ratings=Object.fromEntries(keys.map(k=>[k,percentile(current[k],reference[k])]));for(const item of current.ingredients)item.rating=item.count?percentile(item.count,ingredients.get(item.name)):null;
-    const forecasts=[30,60].filter(l=>l>build.level).map(l=>this.calculate(build,l)),ingredientAlternatives=[];
+    const forecasts=[30,60,70,80].filter(l=>l>build.level).map(l=>this.calculate(build,l)),ingredientAlternatives=[];
     for(const s30 of p.ingredient30)for(const s60 of p.ingredient60){const variant={...build,ingredients:[build.ingredients[0],s30.ingredient.name,s60.ingredient.name]},r=this.calculate(variant,60);ingredientAlternatives.push({slots:variant.ingredients,ingredients:r.ingredients,ingredientCount:r.ingredientCount,strength:r.strength})}
     const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build);
     const warnings=[];if(build.subskills.some((s,i)=>!s&&UNLOCKS[i]<=build.level))warnings.push('Some unlocked subskills are unknown; those slots contribute no bonus.');

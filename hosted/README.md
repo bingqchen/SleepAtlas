@@ -107,4 +107,8 @@ In saved Pokémon details, swipe left for the next Pokémon or right for the pre
 
 Delete appears in the edit screen for saved Pokémon, beside Cancel and Analyze & save. It is hidden for new Pokémon and examples. Deletion asks for confirmation and warns when unsaved edits will also be discarded. Successful deletion clears a recovery draft for that Pokémon while preserving unrelated drafts; a failed deletion keeps the editor open. The details screen has no top-right × and retains its footer Close button and Escape support.
 
+## Future levels through 80 (Reader v22)
+
+Future levels now includes levels 30, 60, 70, and 80 when they are above the Pokémon's current level. Projections apply the relevant subskill and ingredient unlocks, including new Inventory Up capacity, while keeping the displayed main skill level unchanged. Level 80 is labeled as a hypothetical estimate. Model `atlas-1.3.1-web` refreshes existing saved analyses for display without rewriting their builds or history. Run `node tests/forecasts.mjs` for forecast boundaries, unlock effects, and old-analysis refresh coverage.
+
 Single-finger horizontal swipes leave vertical scrolling, overflowing tables, links/buttons, text selection, pinch zoom, and Safari's edge gestures alone. Closing, editing, or deleting invalidates pending detail reads so a late response cannot reopen the dialog. `node tests/detail-navigation.mjs` covers ordered neighbors, endpoints, gesture rejection, click suppression, and asynchronous close/error handling.
