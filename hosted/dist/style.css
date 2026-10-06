@@ -2,10 +2,12 @@
 
 /* Installed app chrome and home-screen setup. */
 .topbar-actions{display:flex;align-items:center;gap:10px;margin-left:auto}
-.collection-toolbar{display:grid;grid-template-columns:minmax(180px,2fr) minmax(140px,1fr) minmax(160px,1fr);align-items:end}
+.collection-toolbar{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr));align-items:end}
 .collection-toolbar .field{min-width:0}
 .collection-toolbar input,.collection-toolbar select{width:100%;max-width:none}
 .collection-summary{margin:0 0 14px;line-height:1.5}
+.level-preview-notice{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 16px}
+.level-preview-notice .text-button{flex-shrink:0;min-height:44px}
 .summary-table-wrap{border:1px solid var(--line);border-radius:14px;background:white}
 .summary-table{table-layout:fixed}
 .summary-table .name-column{width:40%}.summary-table .level-column{width:12%}.summary-table .strength-column{width:24%}.summary-table .output-column{width:24%}
@@ -24,7 +26,7 @@
 .specialty-count{display:block}.specialty-count+.specialty-count{margin-top:8px}
 @media(max-width:600px){
   .collection-toolbar{grid-template-columns:1fr 1fr;gap:12px}
-  .collection-toolbar .prefix-filter{grid-column:1/-1}
+  .collection-toolbar .prefix-filter,.collection-toolbar .level-preview-field{grid-column:1/-1}
   .collection-toolbar input,.collection-toolbar select{width:100%;font-size:1rem}
   .summary-table .name-column{width:35%}.summary-table .level-column{width:13%}.summary-table .strength-column{width:26%}.summary-table .output-column{width:26%}
   .summary-table th,.summary-table td{padding:12px 8px}
