@@ -2,6 +2,8 @@
 
 A mobile-friendly, local Pokémon Sleep screenshot analyzer. Import English detail screens for one Pokémon, review extracted fields, and save daily production estimates and same-species ratings to SQLite.
 
+For the current hosted app, read [How Sleep Atlas works](docs/how-sleep-atlas-works.md): screenshot recognition, calculations, ratings, local storage, backups, and catalog updates.
+
 ## Run on this Mac
 
 ```sh
