@@ -1,22 +1,26 @@
 import {Engine} from './engine.js';
 import {calculatedStats,updatedCarrySize} from './pokemon-stats.js';
+import {favoriteSettings} from './favorite-berries.js';
 
 export const TEMPORARY_LEVELS=[25,30,50,60,70,80];
 // Only derived views live here. Neither the saved analysis nor its build is
 // modified, and this cache is discarded when the page reloads.
 export function createLevelPreview(catalog){
   const engine=new Engine(catalog),cache=new Map();
-  return (analysis,level,{full=false}={})=>{
-    if(level===null)return analysis;
-    if(!TEMPORARY_LEVELS.includes(level))throw Error('Choose a supported temporary level.');
-    if(level===analysis.build.level)return analysis;
-    const key=JSON.stringify([analysis.modelVersion,analysis.catalogCommit,analysis.build,level]);
+  return (analysis,level,{full=false,favoriteBerries=null}={})=>{
+    if(level!==null&&!TEMPORARY_LEVELS.includes(level))throw Error('Choose a supported temporary level.');
+    const changedLevel=level!==null&&level!==analysis.build.level;
+    if(!changedLevel&&favoriteBerries===null)return analysis;
+    const key=JSON.stringify([analysis.modelVersion,analysis.catalogCommit,analysis.build,level,favoriteBerries]);
     let entry=cache.get(key);
     if(!entry){
-      const saved=analysis.build,build={...saved,level};
-      build.carrySize=updatedCarrySize(catalog,build,saved);
-      build.displayedFrequencySeconds=calculatedStats(catalog,build).frequencySeconds;
-      build.frequencySource='calculated';
+      const saved=analysis.build,build={...saved,level:level??saved.level};
+      if(changedLevel){
+        build.carrySize=updatedCarrySize(catalog,build,saved);
+        build.displayedFrequencySeconds=calculatedStats(catalog,build).frequencySeconds;
+        build.frequencySource='calculated';
+      }
+      build.settings=favoriteSettings(build,catalog,favoriteBerries);
       entry={build:engine.validate(build)};cache.set(key,entry);
       if(cache.size>500)cache.delete(cache.keys().next().value);
     }

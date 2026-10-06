@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {Engine} from '../dist/engine.js';
+import {Engine,favoriteMultiplier} from '../dist/engine.js';
 import {createLevelPreview,TEMPORARY_LEVELS} from '../dist/level-preview.js';
 import {collectionRows} from '../dist/collection.js';
 import {calculatedStats,updatedCarrySize} from '../dist/pokemon-stats.js';
 import {resolveMainSkill} from '../dist/main-skills.js';
+import {berryOptions,describeFavorites} from '../dist/favorite-berries.js';
 
 const catalog=JSON.parse(fs.readFileSync(new URL('../dist/catalog.json',import.meta.url))),engine=new Engine(catalog),preview=createLevelPreview(catalog);
 const build={species:'GARDEVOIR',nickname:'Saved helper',level:52,nature:'Gentle',skillLevel:6,carrySize:29,displayedFrequencySeconds:1853,frequencySource:'recorded',
@@ -53,12 +54,16 @@ const showing=source.slice(source.indexOf('async function showDetails('),source.
 const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',open:false,setAttribute(){},removeAttribute(){},showModal(){this.open=true},focus(){}});return nodes.get(id)};
 let edited;
 const row={id:'saved',analysis:saved,screenshots:[{id:'image',filename:'example',text:[]}],historyCount:1};
-const ctx=vm.createContext({$:node,online:true,catalog,api:async()=>row,levelPreview:preview,visibleCollection:()=>[row],species:n=>engine.species.get(n),resolveMainSkill,
+const ctx=vm.createContext({$:node,online:true,catalog,api:async()=>row,levelPreview:preview,visibleCollection:()=>[row],species:n=>engine.species.get(n),resolveMainSkill,favoriteMultiplier,berryOptions,describeFavorites,
   updateDetailButtons(){},detailNavigation:()=>'',pokemonStats:()=>'',ingredientTable:()=>'',escapeHTML:String,fmt:String,bindClose(){},closeDetails(){},openEditor:(...args)=>edited=args,toast:message=>{throw Error(message)}});
-vm.runInContext('let detailRequest=0,detailLoading=false,detailId=null,detailOrder=[],levelOverride=70;'+showing,ctx);
+vm.runInContext('let detailRequest=0,detailLoading=false,detailId=null,detailOrder=[],levelOverride=70,favoriteBerryConfig=null;'+showing,ctx);
 await vm.runInContext('showDetails("saved")',ctx);
 assert.match(node('detail-body').innerHTML,/TEMPORARY PREVIEW · LV. 70/);assert.match(node('detail-body').innerHTML,/Saved level: 52/);
 node('edit-pokemon').onclick();assert.equal(edited[0],saved.build);assert.equal(edited[1].id,'saved');assert.equal(edited[1].imageIds[0],'image');
+vm.runInContext('favoriteBerryConfig={berries:["MAGO"],multiplier:2.4}',ctx);
+await vm.runInContext('showDetails("saved")',ctx);
+assert.match(node('detail-body').innerHTML,/Mago berries use 2.4× strength/);
+node('edit-pokemon').onclick();assert.equal(edited[0],saved.build,'Berry and level previews must both stay out of the editor');
 assert.deepEqual(saved,snapshot);
 
 await import(process.argv[2]);globalThis.fetch=async()=>new Response(JSON.stringify(catalog));

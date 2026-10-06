@@ -1,6 +1,8 @@
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
-// Browser port of atlas-1.3. Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.3.1-web';
+// Base formulas ported from atlas-1.3, with selectable favorite berry bonuses.
+// Reference samples are identical to the Python model.
+export const MODEL_VERSION='atlas-1.4-web';
+export const favoriteMultiplier=settings=>settings.favoriteBerry?(settings.favoriteBerryMultiplier??2):1;
 export function ownSkillBerries(skill,level){
   // Solo baselines from the pinned Neroli's Lab skill definitions. Team bonuses
   // and Disguise's sleep-reset Great Success are deliberately excluded.
@@ -51,6 +53,7 @@ export class Engine{
     if(typeof incoming!=='object'||Array.isArray(incoming))throw Error('Invalid analysis settings.');
     for(const [key,low,high] of [['energyMultiplier',1,2.5],['sleepHours',0,12],['collectionHours',.25,12],['areaBonus',0,100],['teamHelpingBonus',0,4]])settings[key]=numeric(incoming[key]??settings[key],key,low,high,key==='teamHelpingBonus');
     if(typeof(incoming.favoriteBerry??false)!=='boolean')throw Error('Favorite berry must be true or false.');settings.favoriteBerry=incoming.favoriteBerry??false;
+    if(incoming.favoriteBerryMultiplier!==undefined){if(![2,2.4].includes(incoming.favoriteBerryMultiplier))throw Error('Favorite berry multiplier must be 2 or 2.4.');settings.favoriteBerryMultiplier=incoming.favoriteBerryMultiplier}
     const nickname=raw.nickname||p.displayName,notes=raw.notes??'';
     if(typeof nickname!=='string'||nickname.length>80)throw Error('Name must contain at most 80 characters.');
     if(typeof notes!=='string'||notes.length>4000)throw Error('Notes must contain at most 4,000 characters.');
@@ -79,8 +82,8 @@ export class Engine{
     const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build);
     const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount,skillBerriesPerTrigger=ownSkillBerries(skill,effectiveLevel),skillBerryCount=triggers*skillBerriesPerTrigger;
     const berries=gatheredBerryCount+skillBerryCount,base=p.berry.value,berryValue=Math.floor(Math.max(base+level-1,base*1.025**(level-1))+.5),area=1+settings.areaBonus/100;
-    const skillBerryStrength=skillBerryCount*berryValue*(settings.favoriteBerry?2:1)*area;
-    const berryStrength=berries*berryValue*(settings.favoriteBerry?2:1)*area,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
+    const skillBerryStrength=skillBerryCount*berryValue*favoriteMultiplier(settings)*area;
+    const berryStrength=berries*berryValue*favoriteMultiplier(settings)*area,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
     const index=effectiveLevel-1,direct=skill.strengthAmountsMean||skill.strengthAmounts,supported=!!direct&&!skill.modifierName;
     const skillStrength=supported?triggers*direct[index]*area:0,randomIngredients=skill.name==='Ingredient Magnet S'&&!skill.modifierName?triggers*skill.ingredientAmounts[index]:0;
     return {level,skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};

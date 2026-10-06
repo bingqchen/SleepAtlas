@@ -91,3 +91,5 @@ body{padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left)
 .detail-navigation p{text-align:center;margin:8px 0 0;font-size:.875rem}
 #detail-title:focus{outline:none}
 @media(max-width:600px){.detail-navigation{padding:12px 20px 0}}
+
+.favorite-berry-fields{display:grid;grid-template-columns:1fr;gap:16px}.favorite-multiplier-field{margin:22px 0 16px}#favorite-berries-dialog{width:min(560px,100%)}#favorite-berries-dialog .prose>p:last-child{margin-bottom:0}#favorite-berries-dialog .dialog-footer{flex-wrap:wrap}
