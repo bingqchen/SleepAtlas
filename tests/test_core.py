@@ -100,6 +100,32 @@ class DatabaseTests(unittest.TestCase):
         backup['pokemon'][0]['id']=str(uuid.uuid4())
         self.assertEqual(storage.restore(backup),{'added':1,'skipped':0})
         self.assertEqual(len(storage.list_pokemon()),2)
+    def test_image_free_backup_preserves_local_screenshots_and_restores_build(self):
+        b=build();b['nickname']='Updated';b['notes']='Keep this helper';b['settings']['areaBonus']=25
+        image=(Path(__file__).parent/'fixtures/ocr-text.png').read_bytes()
+        ocr={'lines':[{'text':'Raichu','confidence':.98,'x':0,'y':0}]}
+        image_id=str(uuid.uuid4())
+        with storage.connect() as db:
+            db.execute('INSERT INTO screenshots VALUES(?,?,?,?,?,?,?)',(image_id,None,'fixture.png','image/png',image,json.dumps(ocr),storage.now()))
+        pid=storage.save(b,image_ids=[image_id]);backup=storage.backup()
+        self.assertEqual(backup['pokemon'],[{'id':pid,'build':b}])
+        with storage.connect() as db:
+            pic=db.execute('SELECT * FROM screenshots WHERE id=?',(image_id,)).fetchone()
+            self.assertEqual(pic['image'],image);self.assertEqual(json.loads(pic['ocr_json']),ocr)
+            db.execute('DELETE FROM pokemon WHERE id=?',(pid,))
+        self.assertEqual(storage.restore(backup),{'added':1,'skipped':0})
+        restored=storage.get_pokemon(pid)
+        self.assertEqual(restored['analysis']['build'],b);self.assertEqual(restored['screenshots'],[])
+    def test_legacy_image_backup_still_restores(self):
+        pid=str(uuid.uuid4());b=build()
+        image=(Path(__file__).parent/'fixtures/ocr-text.png').read_bytes()
+        ocr={'lines':[{'text':'Raichu','confidence':.98,'x':0,'y':0}]}
+        legacy={'format':'sleep-atlas','version':1,'pokemon':[{'id':pid,'build':b,'screenshots':[{'filename':'fixture.png','mime':'image/png','data':base64.b64encode(image).decode(),'ocr':ocr}]}]}
+        self.assertEqual(storage.restore(legacy),{'added':1,'skipped':0})
+        with storage.connect() as db:
+            pic=db.execute('SELECT * FROM screenshots WHERE pokemon_id=?',(pid,)).fetchone()
+            self.assertEqual(pic['image'],image);self.assertEqual(json.loads(pic['ocr_json']),ocr)
+        self.assertEqual(storage.backup()['pokemon'],[{'id':pid,'build':b}])
     def test_restore_validates_entire_batch_before_writing(self):
         storage.save(build());data=storage.backup();data['pokemon'][0]['id']=str(uuid.uuid4())
         data['pokemon'].append({'id':str(uuid.uuid4()),'build':{'species':'FAKE'}})

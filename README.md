@@ -55,7 +55,7 @@ Database: `data/sleep-atlas.sqlite3` (WAL mode, schema version 1).
 
 Each edit appends an analysis version. Analyses include projections at levels 30 and 60 when applicable, plus all level-60 ingredient combinations. SQL statements are parameterized and related rows are written in transactions. Deletion cascades to that Pokémon's screenshots and analysis history.
 
-**Export backup** creates portable JSON containing builds and screenshots. **Restore** validates the full input, adds missing IDs without overwriting existing individuals, and recalculates estimates. JSON backup does not preserve historical analysis versions; to back up the entire database, stop the server and copy `data/`. Never copy only the live `.sqlite3` file while WAL writes are active.
+**Export backup** creates portable JSON containing Pokémon builds and settings, without screenshot images or OCR. Screenshots stay in the local database; older backups containing images can still be restored. **Restore** validates the full input, adds missing IDs without overwriting existing individuals, and recalculates estimates. JSON backup does not preserve historical analysis versions; to back up the entire database, stop the server and copy `data/`. Never copy only the live `.sqlite3` file while WAL writes are active.
 
 Set `SLEEP_ATLAS_DATA=/path/to/directory` before launch to choose a different storage directory. Keep data, runtime caches, and backups out of source control.
 

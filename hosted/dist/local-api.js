@@ -20,7 +20,6 @@ function decodePicture(pic){
   if(pic.ocr?.lines&&!Array.isArray(pic.ocr.lines))throw Error('Invalid screenshot text.');
   return {id:crypto.randomUUID(),filename:String(pic.filename||'screenshot').slice(0,200),mime:pic.mime,blob:new Blob([bytes],{type:pic.mime}),text:(pic.ocr?.lines||[]).map(l=>({text:String(l.text??''),x:Number(l.x)||0,y:Number(l.y)||0,confidence:Number(l.confidence)||0})),createdAt:new Date().toISOString()};
 }
-const encodeBlob=blob=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=()=>reject(Error('Could not export a screenshot.'));r.readAsDataURL(blob)});
 export async function savePictures(pictures){
   const db=await database(),t=db.transaction('screenshots','readwrite'),done=complete(t),store=t.objectStore('screenshots');
   // Discard abandoned imports older than a day; saved screenshots stay attached.
@@ -75,9 +74,8 @@ export async function api(path,options={}){
     if(method==='DELETE'){const db=await database(),t=db.transaction(['pokemon','screenshots'],'readwrite'),done=complete(t),store=t.objectStore('pokemon'),r=store.get(id);r.onsuccess=()=>{for(const p of r.result?.screenshots||[])t.objectStore('screenshots').delete(p.id);store.delete(id)};await done;return {deleted:true}}
   }
   if(path==='/api/backup'){
-    // One read transaction gives the export a consistent snapshot across tabs.
-    const db=await database(),t=db.transaction(['pokemon','screenshots']);const [rows,pics]=await Promise.all([request(t.objectStore('pokemon').getAll()),request(t.objectStore('screenshots').getAll())]);const pictures=new Map(pics.map(p=>[p.id,p]));
-    const pokemon=[];for(const row of rows){const screenshots=[];for(const ref of row.screenshots||[]){const p=pictures.get(ref.id);if(!p)throw Error('A saved screenshot is missing.');screenshots.push({filename:p.filename,mime:p.mime,data:await encodeBlob(p.blob),ocr:{lines:p.text}})}pokemon.push({id:row.id,build:row.analysis.build,screenshots})}
+    // Export builds only; original screenshots and OCR stay in device storage.
+    const pokemon=(await all('pokemon')).map(row=>({id:row.id,build:row.analysis.build}));
     return {format:'sleep-atlas',version:1,exportedAt:new Date().toISOString(),pokemon};
   }
   if(path==='/api/restore'&&method==='POST'){

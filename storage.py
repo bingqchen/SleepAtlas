@@ -80,12 +80,9 @@ def get_pokemon(pid):
 def backup():
     with connect() as db:
         db.execute('BEGIN')
-        records=[]
-        for row in db.execute('SELECT * FROM pokemon ORDER BY created_at'):
-            pictures=[]
-            for pic in db.execute('SELECT * FROM screenshots WHERE pokemon_id=?',(row['id'],)):
-                pictures.append({'filename':pic['filename'],'mime':pic['mime'],'data':base64.b64encode(pic['image']).decode(),'ocr':json.loads(pic['ocr_json'])})
-            records.append({'id':row['id'],'build':json.loads(row['build_json']),'screenshots':pictures})
+        # Keep exports small; screenshots and OCR remain in the local database.
+        records=[{'id':row['id'],'build':json.loads(row['build_json'])}
+                 for row in db.execute('SELECT id,build_json FROM pokemon ORDER BY created_at')]
         return {'format':'sleep-atlas','version':1,'exportedAt':now(),'pokemon':records}
 
 def restore(payload):

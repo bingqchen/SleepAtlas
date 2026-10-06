@@ -4,7 +4,6 @@ import {matchesProgression} from '../dist/build-identity.js';
 await import(process.argv[2]);
 const catalog=JSON.parse(fs.readFileSync(new URL('../dist/catalog.json',import.meta.url)));
 globalThis.fetch=async()=>new Response(JSON.stringify(catalog));
-globalThis.FileReader=class {async readAsDataURL(blob){this.result='data:'+blob.type+';base64,'+Buffer.from(await blob.arrayBuffer()).toString('base64');this.onload()}};
 const {api,database,savePictures}=await import('../dist/local-api.js');
 const post=(path,body)=>api(path,{method:'POST',body:JSON.stringify(body)});
 const base={species:'RAICHU',nickname:'Sparky',level:20,nature:'Hardy',skillLevel:3,carrySize:31,subskills:['Skill Trigger S','Helping Speed S','Ingredient Finder S','Inventory Up S','Skill Level Up S'],ingredients:['Apple','Ginger','Apple'],settings:catalog.defaults,notes:'Keep this note'};
@@ -43,7 +42,8 @@ assert.equal((await api('/api/pokemon')).length,2,'All matching prior entries me
 assert.equal((await read('pokemon',first.id)).historyCount,beforeFailure.historyCount+3);
 for(const id of duplicateIds)assert.equal(await read('pokemon',id),undefined);
 const backup=await api('/api/backup');assert.equal(backup.pokemon.length,2);assert.equal(backup.pokemon.find(p=>p.id===first.id).build.level,80);
-assert.equal(backup.pokemon.find(p=>p.id===first.id).screenshots.length,1);
+assert.equal(Object.hasOwn(backup.pokemon.find(p=>p.id===first.id),'screenshots'),false);
+assert.equal((await api('/api/pokemon/'+first.id)).screenshots.length,1);
 await api('/api/pokemon/'+first.id,{method:'DELETE'});assert.equal(await read('screenshots',newPic),undefined);
 db.close();
 console.log('Passed: save without review flag, progression matching, distinct builds, upgrade/unlock bonuses, stable identity, history, screenshot replacement/ownership, atomic failures, concurrent imports, merging existing duplicates, and backup consistency.');

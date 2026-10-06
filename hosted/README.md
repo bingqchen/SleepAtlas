@@ -5,7 +5,7 @@ A private Sites-hosted web app. This directory is separate from the original Mac
 - Static HTML and ES modules; no build step, API key, cloud database, or Mac connection.
 - Browser OCR: Tesseract.js 6.0.1, tesseract.js-core 6.0.0, English @tesseract.js-data/eng 1.0.0 (4.0.0_best_int), served from this site.
 - IndexedDB sleep-atlas-collection stores Pokémon, versioned analyses, metrics, and screenshot blobs on each device. The original Mac SQLite database is not uploaded.
-- JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved; histories are local and excluded from JSON exports.
+- JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved. JSON exports contain Pokémon builds and settings; screenshot images, OCR, and analysis histories stay local and are excluded. Older backups containing screenshots can still be restored.
 - The calculation model matches the original Python atlas-1.0 model. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
 - Home-screen manifest, Apple touch icon, and service worker. Internet is needed for initial loading, OCR download, and potentially Sites sign-in. Offline data can be cleared by the browser; export backups regularly.
 
