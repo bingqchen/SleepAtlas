@@ -61,6 +61,8 @@ body{padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left)
 .frequency-stat{padding:18px 20px;background:#edf3e7;border:1px solid var(--line);border-radius:12px;margin-bottom:24px}
 .frequency-stat h3{font-size:.875rem;margin:0 0 8px}
 .frequency-stat strong{font-size:1.35rem;display:block}
+.frequency-stat .nature-stat{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.frequency-stat .nature-stat h3{margin:0}
 .frequency-stat .carry-value{font-size:inherit;display:inline}
 .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 .metric label{font-size:.875rem}

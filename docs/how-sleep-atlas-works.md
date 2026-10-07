@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v29, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v30, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -121,7 +121,7 @@ The collection defaults to **Highest strength**. The name filter matches the beg
 
 Sorting defaults to highest strength. Choose Fastest speed to sort by the Pokémon’s own helping frequency, shortest interval first, and display that frequency in the last column. Missing readings appear last as “Not recorded.” Highest rating displays the strength percentile out of 100 in the last column. Other sorts keep the usual specialty counts. Temporary levels apply to these values too.
 
-Tap a row to see its details. Swipe left or right through the current filtered and sorted collection. Edit opens the saved build; species choices are restricted to that Pokémon’s evolution family. New entries can select any supported species. Delete is inside Edit, and leaving unsaved edits asks for confirmation.
+Tap a row to see its details, including a labeled Nature row above helping frequency. Swipe left or right through the current filtered and sorted collection. Edit opens the saved build; species choices are restricted to that Pokémon’s evolution family. New entries can select any supported species. Delete is inside Edit, and leaving unsaved edits asks for confirmation.
 
 | Control | Effect | Persistence |
 | --- | --- | --- |
