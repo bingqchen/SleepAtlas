@@ -27,8 +27,7 @@ export function updatedCarrySize(catalog,build,anchor){
 }
 export function formatFrequency(seconds){
   if(!Number.isInteger(seconds)||seconds<1)return 'Not recorded';
-  const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60),rest=seconds%60;
-  return `Every ${hours?`${hours} hr `:''}${minutes} min ${rest} sec`;
+  return `${Math.floor(seconds/60)}′${String(seconds%60).padStart(2,'0')}″`;
 }
 export function withRecordedFrequency(build,screenshots,catalog){
   // Explicit null means the user cleared the reading. Do not recover it again.

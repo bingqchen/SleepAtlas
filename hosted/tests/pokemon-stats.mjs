@@ -14,7 +14,7 @@ assert.equal(readDisplayedFrequency([{lines:[line('Every 30 mins',.4),line('53 s
 assert.equal(readDisplayedFrequency([{lines:[line('Every 30 mins',.4),line('Every 30 mins',.401),line('53 secs',.7),line('53 secs',.701)]}]).seconds,1853);
 assert.equal(readDisplayedFrequency([{lines:[line('Every 30 mins',.4),line('53 secs',.7,.3)]}]).seconds,null);
 assert.deepEqual(readDisplayedFrequency([{lines:[line('Every 30 mins 53 secs')]},{lines:[line('Every 31 mins 0 secs')]}]),{seconds:null,conflict:true});
-assert.equal(formatFrequency(1853),'Every 30 min 53 sec');assert.equal(formatFrequency(null),'Not recorded');
+for(const [seconds,label] of [[1853,'30′53″'],[5551,'92′31″'],[3600,'60′00″'],[1,'0′01″']])assert.equal(formatFrequency(seconds),label);assert.equal(formatFrequency(null),'Not recorded');
 const detected=parseOCR([fixture],catalog).fields;
 const build=engine.validate({...detected,ingredients:['Soybean','Soybean','Corn']});
 const legacy={...build};delete legacy.displayedFrequencySeconds;

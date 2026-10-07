@@ -61,8 +61,14 @@ body{padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left)
 .frequency-stat{padding:18px 20px;background:#edf3e7;border:1px solid var(--line);border-radius:12px;margin-bottom:24px}
 .frequency-stat h3{font-size:.875rem;margin:0 0 8px}
 .frequency-stat strong{font-size:1.35rem;display:block}
-.frequency-stat .nature-stat{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
-.frequency-stat .nature-stat h3{margin:0}
+.frequency-stat .nature-stat{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.frequency-stat .nature-stat h3{margin:0 0 8px}
+.nature-summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.nature-effects{display:flex;flex-wrap:wrap;gap:6px}
+.nature-effect{font-size:.75rem;font-weight:600;line-height:1.4;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--paper);white-space:nowrap}
+.nature-effect.up .nature-arrow{color:#b64d23}
+.nature-effect.down .nature-arrow{color:#176b9a}
+.nature-effect.neutral{color:var(--muted)}
 .frequency-stat .carry-value{font-size:inherit;display:inline}
 .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 .metric label{font-size:.875rem}
