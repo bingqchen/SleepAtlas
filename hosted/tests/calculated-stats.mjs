@@ -42,6 +42,7 @@ const backup=await api('/api/backup');
 assert.equal(backup.pokemon[0].build.frequencySource,'calculated');
 const restoredId=crypto.randomUUID();
 await api('/api/restore',{method:'POST',body:JSON.stringify({...backup,pokemon:[{...backup.pokemon[0],id:restoredId}]})});
-assert.deepEqual((await api('/api/pokemon/'+restoredId)).analysis.build,saved.analysis.build);
+assert.deepEqual((await api('/api/pokemon/'+row.id)).analysis.build,saved.analysis.build);
+assert.equal((await api('/api/pokemon')).length,1,'Compatible cross-ID restore retains the saved identity');
 (await database()).close();
 console.log('Passed: 249 species base stats, evolution bonuses, active subskills, preserved carry extras, independent own frequency, partial forms, source validation and backup round-trip.');

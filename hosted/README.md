@@ -146,3 +146,7 @@ Run `node tests/offline.mjs` for real asset coverage, concurrent downloads, miss
 ## Collection sorting (Reader v29)
 
 Count-based sorts have been removed. Fastest speed sorts the visible build’s `displayedFrequencySeconds` ascending, with missing readings last; this matches details and temporary-level previews, excluding modeled team/energy assumptions. The last column shows own helping frequency for Speed, strength percentile out of 100 for Rating, and specialty counts for all other sorts. Highest strength remains the default.
+
+## Compatible backup replacement (Reader v32)
+
+Restore updates compatible existing IDs or unique same-species matches across IDs. Nature, ingredient slots, Mew skill choice, and ordered subskill families identify compatibility; imported mutable stats win. Same-ID evolution follows the editor’s evolution family. Matching is planned against one transaction snapshot, with exact IDs taking priority and competing/ambiguous updates skipped. Changes preserve local identity/history and image-free imports preserve screenshots. Unchanged builds and repeated legacy images are idempotent. Restore reports added, updated, unchanged, and skipped counts.

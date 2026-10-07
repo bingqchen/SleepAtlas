@@ -1,9 +1,18 @@
+import {speciesChoices} from './evolution.js';
 const UNLOCKS=[10,25,50,70,80];
 const upgrades=[['Helping Speed S','Helping Speed M'],['Ingredient Finder S','Ingredient Finder M'],['Inventory Up S','Inventory Up M','Inventory Up L'],['Skill Level Up S','Skill Level Up M'],['Skill Trigger S','Skill Trigger M']];
 const sameArray=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((v,i)=>v===b[i]);
 function sameOrUpgrade(before,after){
   if(before===after)return true;
   return upgrades.some(family=>family.includes(before)&&family.indexOf(after)>family.indexOf(before));
+}
+export function compatibleImport(before,after,catalog,{sameId=false}={}){
+  const sameSpecies=before.species===after.species;
+  if(!sameSpecies&&(!sameId||!speciesChoices(catalog,before.species).some(p=>p.name===after.species)))return false;
+  if(before.nature!==after.nature||!sameArray(before.ingredients,after.ingredients)||(before.mainSkill||'')!==(after.mainSkill||''))return false;
+  // A backup is authoritative in either direction, including an older level.
+  // Unknown slots are not wildcards, and skills must stay in their own slots.
+  return before.subskills?.length===5&&after.subskills?.length===5&&before.subskills.every((s,i)=>sameOrUpgrade(s,after.subskills[i])||sameOrUpgrade(after.subskills[i],s));
 }
 export function matchesProgression(before,after,catalog){
   if(before.species!==after.species||before.nature!==after.nature||!sameArray(before.ingredients,after.ingredients))return false;

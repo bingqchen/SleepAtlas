@@ -1,5 +1,5 @@
 import {Engine,MODEL_VERSION} from './engine.js';
-import {matchesProgression} from './build-identity.js';
+import {matchesProgression,compatibleImport} from './build-identity.js';
 import {withRecordedFrequency} from './pokemon-stats.js';
 import {speciesChoices} from './evolution.js';
 let ready,dbPromise;
@@ -98,11 +98,59 @@ export async function api(path,options={}){
     for(const row of body.pokemon){
       if(!row||!validId(row.id)||seen.has(row.id.toLowerCase()))throw Error('Invalid or duplicate Pokémon IDs in backup.');seen.add(row.id.toLowerCase());
       const screenshots=row.screenshots||[];if(!Array.isArray(screenshots)||screenshots.length>8)throw Error('Invalid screenshots in backup.');
-      const analysis=engine.analyze(row.build),pics=screenshots.map(decodePicture);prepared.push({id:row.id.toLowerCase(),analysis,pics});
+      const analysis=engine.analyze(row.build),pics=screenshots.map(decodePicture);
+      for(const [i,pic] of pics.entries()){
+        const bytes=new TextEncoder().encode(JSON.stringify([pic.filename,pic.mime,pic.text,screenshots[i].data]));
+        pic.fingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
+      }
+      prepared.push({id:row.id.toLowerCase(),analysis,pics});
       await new Promise(r=>setTimeout(r,0));
     }
-    const db=await database(),t=db.transaction(['pokemon','screenshots'],'readwrite'),done=complete(t),store=t.objectStore('pokemon');let added=0,skipped=0;
-    for(const row of prepared){const r=store.get(row.id);r.onsuccess=()=>{if(r.result){skipped++;return}const now=new Date().toISOString();store.add({id:row.id,createdAt:now,updatedAt:now,analysis:row.analysis,history:[{createdAt:now,analysis:row.analysis}],historyCount:1,screenshots:row.pics.map(p=>({id:p.id,filename:p.filename,text:p.text}))});for(const pic of row.pics)t.objectStore('screenshots').add({...pic,owner:row.id});added++}}await done;return {added,skipped};
+    const db=await database(),t=db.transaction(['pokemon','screenshots'],'readwrite'),done=complete(t),store=t.objectStore('pokemon'),pictures=t.objectStore('screenshots');
+    const result={added:0,updated:0,unchanged:0,skipped:0};let failure;
+    // Read and match inside the write transaction so simultaneous restores
+    // cannot make decisions against an outdated collection.
+    const existing=store.getAll();existing.onsuccess=()=>{try{
+      const rows=new Map(existing.result.map(row=>[row.id,row]));
+      const reserved=new Set(prepared.filter(incoming=>rows.has(incoming.id)).map(incoming=>incoming.id));
+      const plans=[];
+      for(const incoming of prepared){
+        let old=rows.get(incoming.id);const exact=!!old;
+        if(old){
+          // An incompatible explicit ID must never target a different helper.
+          if(!compatibleImport(old.analysis.build,incoming.analysis.build,catalog,{sameId:true})){result.skipped++;continue}
+        }else{
+          const matches=[...rows.values()].filter(row=>compatibleImport(row.analysis.build,incoming.analysis.build,catalog));
+          if(matches.length>1){result.skipped++;continue}
+          old=matches[0];
+          // Explicit IDs retain priority even when their imported build conflicts.
+          if(old&&reserved.has(old.id)){result.skipped++;continue}
+        }
+        plans.push({incoming,old,exact});
+      }
+      // Match against the pre-import snapshot. Two new helpers in one backup
+      // remain distinct; competing updates cannot depend on file order.
+      const targets=new Map();
+      for(const plan of plans)if(plan.old){const group=targets.get(plan.old.id)||[];group.push(plan);targets.set(plan.old.id,group)}
+      for(const {incoming,old,exact} of plans){
+        const group=old&&targets.get(old.id);
+        if(group?.length>1&&!exact){result.skipped++;continue}
+        const sameAnalysis=old&&JSON.stringify(old.analysis.build)===JSON.stringify(incoming.analysis.build)&&old.analysis.modelVersion===incoming.analysis.modelVersion&&old.analysis.catalogCommit===incoming.analysis.catalogCommit;
+        const samePictures=!incoming.pics.length||(incoming.pics.length===old?.screenshots?.length&&incoming.pics.every((pic,i)=>pic.fingerprint===old.screenshots[i].fingerprint));
+        if(sameAnalysis&&samePictures){result.unchanged++;continue}
+        const id=old?.id||incoming.id,now=new Date().toISOString();
+        const history=old?(old.history?.length?[...old.history]:[{createdAt:old.updatedAt,analysis:old.analysis}]):[];
+        if(!sameAnalysis)history.push({createdAt:now,analysis:incoming.analysis});
+        // Image-free backups retain local evidence. Legacy embedded pictures
+        // replace only the matched helper's pictures in this same transaction.
+        const screenshots=!samePictures?incoming.pics.map(p=>({id:p.id,filename:p.filename,text:p.text,fingerprint:p.fingerprint})):old?.screenshots||[];
+        if(!samePictures){for(const pic of old?.screenshots||[])pictures.delete(pic.id);for(const pic of incoming.pics)pictures.add({...pic,owner:id})}
+        const row={id,createdAt:old?.createdAt||now,updatedAt:now,analysis:incoming.analysis,history,historyCount:history.length,screenshots};
+        store.put(row);result[old?'updated':'added']++;
+      }
+    }catch(error){failure=error;t.abort()}};
+    try{await done}catch(error){throw failure||error}
+    return result;
   }
   throw Error('This action is unavailable.');
 }

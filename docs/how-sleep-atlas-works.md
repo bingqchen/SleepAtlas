@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v31, October 6, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v32, October 7, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -140,7 +140,7 @@ Carry limit and main skill level must match or change by the corresponding activ
 
 The hosted app stores Pokémon, analyses, history, and screenshot blobs in **IndexedDB**, the browser’s local database. A separate local store holds the draft, cache, and favorite berry preference. Hosting the app does not upload this collection. Different browsers, devices, and Home Screen storage contexts can have separate collections.
 
-**Export backup** creates JSON containing Pokémon IDs, builds, notes, and individual settings. It leaves out screenshots, recognized text, analysis history, and collection-wide favorite berry preferences. **Restore** validates the backup, recalculates analyses, adds missing IDs, and skips IDs already present; it does not replace an existing record with the same ID. Older backups containing screenshots remain supported.
+**Export backup** creates JSON containing Pokémon IDs, builds, notes, and individual settings. It leaves out screenshots, recognized text, analysis history, and collection-wide favorite berry preferences. **Restore** validates the complete backup and recalculates analyses before writing. Compatible imports overwrite existing Pokémon, keeping the local ID, creation date, and previous analyses. Nature, ordered ingredients, selected Mew skill, and ordered subskills must match; S/M/L variants within a subskill family are compatible in either direction. Exact IDs take priority and can follow the same evolution family; different IDs require a unique same-species match. Imported levels, main skill levels, carry limits, frequency, notes, nicknames, and settings win. Conflicts, ambiguous matches, and competing imports are skipped and counted. Identical imports leave history and timestamps unchanged. Image-free imports preserve local screenshots. All accepted changes are written in one transaction. Older backups containing screenshots remain supported.
 
 Use Export and Restore to move a collection between devices. Export regularly: browser data can be cleared or evicted. The Home Screen installation and private website sign-in do not provide cloud backup. Use the offline download option below to prepare this browser or Home Screen app before disconnecting. Sign-in may still require a connection.
 

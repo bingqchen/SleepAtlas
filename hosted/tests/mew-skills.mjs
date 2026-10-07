@@ -43,7 +43,7 @@ const fields=new Map([['f-species',{value:'MEW'}],['f-mewSkillChance',{value:'4'
 const lookup=id=>id==='f-mainSkill'?null:fields.get(id)||{value:'',checked:false};
 const hostedSource=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
 const hostedGet=hostedSource.slice(hostedSource.indexOf('function getBuild(){'),hostedSource.indexOf('function openEditor('));
-const transitional=new Function('$','unlocks',hostedGet+';return getBuild();')(lookup,[10,25,50,70,80]);
+const transitional=new Function('$','unlocks','editorFavoriteMultiplier',hostedGet+';return getBuild();')(lookup,[10,25,50,70,80],undefined);
 assert.equal(transitional.mainSkill,'');assert.equal(transitional.mewSkillChance,4);
 // Older Mac UI must preserve fields from a restored hosted backup on edit.
 const macSource=fs.readFileSync(new URL('../../web/app.js',import.meta.url),'utf8');
@@ -79,6 +79,6 @@ const backup=await api('/api/backup');assert.equal(backup.pokemon.find(p=>p.id==
 assert.equal(backup.pokemon.find(p=>p.id===id).build.mewSkillChance,5.5);
 assert.ok(backup.pokemon.every(p=>!p.screenshots));
 const restoredId=crypto.randomUUID();await post('/api/restore',{...backup,pokemon:[{id:restoredId,build:berry}]});
-saved=await api('/api/pokemon/'+restoredId);assert.deepEqual(saved.analysis.build,berry);assert.equal(saved.analysis.current.skillBerriesPerTrigger,30);
+saved=await api('/api/pokemon/'+id);assert.deepEqual(saved.analysis.build,berry);assert.equal(saved.analysis.current.skillBerriesPerTrigger,30);
 (await database()).close();
 console.log('Passed: all Mew skill choices and levels, capped effects, rate assumptions, Python parity, no catalog mutation, dedupe, editing/history and image-free backup restore.');

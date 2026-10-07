@@ -36,7 +36,10 @@ await assert.rejects(post('/api/pokemon',{build:skillUpgrade,imageIds:[unrelated
 assert.deepEqual(await read('pokemon',first.id),beforeFailure);
 assert.equal((await read('screenshots',unrelatedPic)).owner,unrelated.id);
 const duplicateIds=[crypto.randomUUID(),crypto.randomUUID()];
-await post('/api/restore',{format:'sleep-atlas',version:1,pokemon:duplicateIds.map(id=>({id,build:base,screenshots:[]}))});
+// Seed historical duplicates directly; Restore now resolves compatible IDs.
+const seed=db.transaction('pokemon','readwrite'),seedDone=new Promise((resolve,reject)=>{seed.oncomplete=resolve;seed.onabort=seed.onerror=()=>reject(seed.error)});
+for(const id of duplicateIds)seed.objectStore('pokemon').add({id,createdAt:'2099-01-01T00:00:00.000Z',updatedAt:'2099-01-01T00:00:00.000Z',analysis:{...row.analysis,build:base},history:[{createdAt:'2099-01-01T00:00:00.000Z',analysis:row.analysis}],historyCount:1,screenshots:[]});
+await seedDone;
 const merged=await post('/api/pokemon',{build:skillUpgrade});assert.equal(merged.id,first.id);assert.equal(merged.deduplicated,3);
 assert.equal((await api('/api/pokemon')).length,2,'All matching prior entries merge, while the different nature stays separate');
 assert.equal((await read('pokemon',first.id)).historyCount,beforeFailure.historyCount+3);
