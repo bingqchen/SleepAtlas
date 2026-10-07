@@ -40,10 +40,10 @@ assert.equal(count(25,'Corn'),0);assert.ok(count(30,'Corn')>0);assert.equal(coun
 const mewSpecies=engine.species.get('MEW'),mew=engine.analyze({...saved.build,species:'MEW',mainSkill:'Berry Burst',mewSkillChance:5.5,ingredients:[0,30,60].map(l=>mewSpecies[`ingredient${l}`][0].ingredient.name)});
 const mewView=preview(mew,70,{full:true});assert.equal(mewView.build.mainSkill,mew.build.mainSkill);assert.equal(mewView.build.mewSkillChance,5.5);assert.ok(mewView.current.skillBerryCount>0);
 const rows=[{id:'a',analysis:saved},{id:'b',analysis:mew}];
-for(const sort of ['strength','rating']){
+for(const sort of ['strength','rating','speed']){
   const views=rows.map(r=>({...r,analysis:preview(r.analysis,70,{full:sort==='rating'})}));
   const sorted=collectionRows(views,catalog.species,{sort});
-  const metric=r=>sort==='rating'?r.analysis.current.ratings.strength:r.analysis.current.strength;
+  const metric=r=>sort==='speed'?-r.analysis.build.displayedFrequencySeconds:sort==='rating'?r.analysis.current.ratings.strength:r.analysis.current.strength;
   assert.ok(metric(sorted[0])>=metric(sorted[1]));assert.ok(sorted.every(r=>r.analysis.build.level===70));
 }
 

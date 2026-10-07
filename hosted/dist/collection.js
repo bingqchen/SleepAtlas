@@ -11,8 +11,11 @@ export function collectionRows(records,species,{prefix='',specialty='',sort='str
     const build=row.analysis.build,p=catalog.get(build.species);
     return (!specialty||p?.specialty===specialty)&&(!query||[build.nickname,p?.displayName].some(name=>normalized(name).startsWith(query)));
   });
-  const metric={strength:'strength',skills:'skillTriggers',ingredients:'ingredientCount',berries:'berryCount'}[sort];
-  if(metric)rows.sort((a,b)=>b.analysis.current[metric]-a.analysis.current[metric]);
+  if(sort==='strength')rows.sort((a,b)=>b.analysis.current.strength-a.analysis.current.strength);
+  else if(sort==='speed'){
+    const seconds=row=>{const value=row.analysis.build.displayedFrequencySeconds;return Number.isInteger(value)&&value>0?value:Infinity};
+    rows.sort((a,b)=>seconds(a)-seconds(b));
+  }
   else if(sort==='level')rows.sort((a,b)=>b.analysis.build.level-a.analysis.build.level);
   else if(sort==='name')rows.sort((a,b)=>(a.analysis.build.nickname||catalog.get(a.analysis.build.species)?.displayName||'').localeCompare(b.analysis.build.nickname||catalog.get(b.analysis.build.species)?.displayName||''));
   else if(sort==='rating')rows.sort((a,b)=>b.analysis.current.ratings.strength-a.analysis.current.ratings.strength);

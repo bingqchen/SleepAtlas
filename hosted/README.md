@@ -142,3 +142,7 @@ The service worker activates without downloading assets, so a slow or failed fil
 The two LSTM core variants, worker, and English language file use a separate pinned OCR cache, retained across app shell updates. Bump that cache name whenever the vendored resources change. Do not add the unused legacy cores to the download unless OCR configuration changes. Offline readiness checks cached files directly, so eviction is detected. No collection or screenshot records are modified by the download.
 
 Run `node tests/offline.mjs` for real asset coverage, concurrent downloads, missing assets, quota/network/redirect/sign-in failures, retries, offline fetches, query-bearing launches, cache retention during updates, and UI response/version timeouts. Browser storage persistence remains best effort; download completion is not a cloud backup or a guarantee against storage eviction.
+
+## Collection sorting (Reader v29)
+
+Count-based sorts have been removed. Fastest speed sorts the visible build’s `displayedFrequencySeconds` ascending, with missing readings last; this matches details and temporary-level previews, excluding modeled team/energy assumptions. The last column shows own helping frequency for Speed, strength percentile out of 100 for Rating, and specialty counts for all other sorts. Highest strength remains the default.

@@ -19,3 +19,10 @@ assert.deepEqual(specialtyCounts(current,'berry').map(x=>[x.label,x.value]),[['b
 assert.equal(specialtyCounts(current,'all').length,3);
 assert.deepEqual(ids({prefix:'nothing'}),[]);
 console.log('Passed: nickname/species prefixes, case and whitespace, Chinese names, combined specialty filters, all-rounders, metric selection, and sorting without mutating records.');
+
+const speedRows=[3600,1200,null,1200,0,undefined].map((seconds,i)=>({id:String(i),analysis:{build:{species:'GARDEVOIR',level:50,displayedFrequencySeconds:seconds},current:{frequencySeconds:i+1,ratings:{strength:[0,70,100,70,20,30][i]}}}}));
+const before=structuredClone(speedRows);
+assert.deepEqual(collectionRows(speedRows,catalog,{sort:'speed'}).map(r=>r.id),['1','3','0','2','4','5'],'Own frequency, fastest first, stable ties, unknown last; modeled frequency does not control Speed');
+assert.deepEqual(collectionRows(speedRows,catalog,{sort:'rating'}).map(r=>r.id),['2','1','3','5','4','0'],'Rating follows strength percentile, including zero');
+assert.deepEqual(speedRows,before,'Sorting must not change saved readings or record order');
+console.log('Passed: own helping-speed order, unknown readings, stable ties, strength percentiles and immutable records.');

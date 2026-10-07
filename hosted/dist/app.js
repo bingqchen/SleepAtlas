@@ -60,15 +60,23 @@ function renderCollection(){
   $('level-preview-description').textContent=levelOverride===null?'':`Temporary Lv. ${levelOverride} for all Pokémon. Saved levels are unchanged.`;
   $('favorite-berry-summary').hidden=favoriteBerryConfig===null;
   $('favorite-berry-summary').textContent=describeFavorites(favoriteBerryConfig,catalog);
-  const visible=visibleCollection();
-  $('collection-summary').textContent=`Showing ${visible.length} of ${records.length} helpers · Estimated daily totals. Select a row for details.`;
+  const visible=visibleCollection(),sort=$('sort').value;
+  const lastHeading=sort==='rating'?'Rating':sort==='speed'?'Speed':'Specialty count';
+  const lastUnit=sort==='rating'?'/ 100':sort==='speed'?'per help':'/ day';
+  const description=sort==='rating'?'Strength rating against builds of the same species.':sort==='speed'?'Own helping frequency · Fastest first.':'Estimated daily totals.';
+  $('collection-summary').textContent=`Showing ${visible.length} of ${records.length} helpers · ${description} Select a row for details.`;
   const empty=`<tr><td colspan="4"><div class="empty-state"><span class="empty-mark">☾</span><h3>${records.length?'No helpers match these filters.':'A new chapter for your Pokémon.'}</h3><p>${records.length?'Try a different name prefix or Pokémon type.':'Save your first helper to compare daily production.'}</p>${records.length?'<button class="text-button" id="clear-filters">Clear filters</button>':'<button class="text-button" id="sample-button">Explore an example</button>'}</div></td></tr>`;
   const rows=visible.map(row=>{
     const {build:b,current:c}=row.analysis,p=species(b.species),name=b.nickname||p.displayName;
     const subtitle=[name!==p.displayName?p.displayName:'',specialtyLabels[p.specialty]].filter(Boolean).join(' · ');
-    return `<tr data-id="${escapeHTML(row.id)}"><th scope="row"><button class="helper-name" aria-label="View ${escapeHTML(name)} analysis">${escapeHTML(name)}</button><span class="helper-meta">${escapeHTML(subtitle)}</span></th><td class="num helper-level">${b.level}</td><td class="num"><strong class="summary-value">${fmt(c.strength,0)}</strong></td><td class="num">${specialtyCounts(c,p.specialty).map(metric=>`<span class="specialty-count"><strong class="summary-value">${fmt(metric.value,metric.digits)}</strong><span class="helper-meta">${metric.label}</span></span>`).join('')||'—'}</td></tr>`;
+    const lastValue=sort==='rating'
+      ?`<strong class="summary-value">${fmt(c.ratings.strength,1)}</strong>`
+      :sort==='speed'
+        ?`<strong class="summary-value">${escapeHTML(formatFrequency(b.displayedFrequencySeconds).replace(/^Every /,''))}</strong>`
+        :specialtyCounts(c,p.specialty).map(metric=>`<span class="specialty-count"><strong class="summary-value">${fmt(metric.value,metric.digits)}</strong><span class="helper-meta">${metric.label}</span></span>`).join('')||'—';
+    return `<tr data-id="${escapeHTML(row.id)}"><th scope="row"><button class="helper-name" aria-label="View ${escapeHTML(name)} analysis">${escapeHTML(name)}</button><span class="helper-meta">${escapeHTML(subtitle)}</span></th><td class="num helper-level">${b.level}</td><td class="num"><strong class="summary-value">${fmt(c.strength,0)}</strong></td><td class="num">${lastValue}</td></tr>`;
   }).join('');
-  $('collection').innerHTML=`<div class="table-wrap summary-table-wrap"><table class="summary-table"><caption class="visually-hidden">Pokémon collection summary. Strength and specialty counts are estimated per day.</caption><colgroup><col class="name-column"><col class="level-column"><col class="strength-column"><col class="output-column"></colgroup><thead><tr><th scope="col">Name</th><th scope="col" class="num">Level</th><th scope="col" class="num">Total strength<span class="column-unit">/ day</span></th><th scope="col" class="num">Specialty count<span class="column-unit">/ day</span></th></tr></thead><tbody>${rows||empty}</tbody></table></div>`;
+  $('collection').innerHTML=`<div class="table-wrap summary-table-wrap"><table class="summary-table"><caption class="visually-hidden">Pokémon collection summary. Total strength is estimated per day. ${description}</caption><colgroup><col class="name-column"><col class="level-column"><col class="strength-column"><col class="output-column"></colgroup><thead><tr><th scope="col">Name</th><th scope="col" class="num">Level</th><th scope="col" class="num">Total strength<span class="column-unit">/ day</span></th><th scope="col" class="num">${lastHeading}<span class="column-unit">${lastUnit}</span></th></tr></thead><tbody>${rows||empty}</tbody></table></div>`;
   // One row handler also receives the name button’s native keyboard click.
   $('collection').querySelectorAll('tr[data-id]').forEach(row=>row.onclick=()=>showDetails(row.dataset.id));
   if($('sample-button'))$('sample-button').onclick=showExample;
