@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v34, October 8, 2026**, using calculation model `atlas-1.5-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v35, October 8, 2026**, using calculation model `atlas-1.6-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -81,7 +81,7 @@ Only unlocked ingredient slots contribute: the first slot from level 1, the seco
 
 Inventory capacity limits normal production between collections. The default routine assumes 8.5 hours of sleep and collection every three waking hours. Once modeled inventory is full, excess helps become berry-only sneaky snacking; they do not add modeled ingredients or skill triggers.
 
-Skill probability uses the species rate, nature, and active Skill Trigger subskills. The estimate accounts for storing at most one activation between collections, or two for skill specialists and all-rounders. The displayed main skill level is used without adding a Skill Level Up bonus again. For Mew, the stored level is retained, but the selected effect is capped at its supported maximum.
+Skill probability uses the species rate, nature, and active Skill Trigger subskills. The estimate accounts for storing at most one activation between collections, or two for skill specialists and all-rounders. The displayed main skill level is used without adding a Skill Level Up bonus again. The editor’s skill-level dropdown offers only valid levels for the selected skill. Switching Mew’s effect to one with a lower cap reduces the selection; saving applies that level. Legacy backups can retain a higher stored level, with calculations capped at the selected effect’s maximum. The editor explains any adjustment before saving.
 
 ### Berries and total strength
 
@@ -106,7 +106,7 @@ Mew’s selected main skill is saved in its build. Supported selected effects us
 
 Ordinary **Berry Burst**, including Mew’s selected effect, assumes four teammates with the skill user’s berry type, level, and favorite bonus by default. At skill level 6 it produces **30 own + 20 teammate berries per activation**. This estimates a full team; it does not claim to know your actual teammates.
 
-Open the Pokémon’s details and choose **Choose teammates → Selected Pokémon** to select up to four saved teammates. Each contributes the skill’s teammate berry amount using its own species, level, and favorite bonus. Empty slots and deleted or unavailable teammates contribute zero, with unavailable selections identified in details. You can select distinct Pokémon of the same species. Return to Automatic estimate to restore the four-similar-teammates assumption.
+Open the Pokémon’s details and choose **Choose teammates → Selected Pokémon** to select up to four saved teammates. Choices are ordered by current estimated strength, highest first, including temporary levels, island settings, and each candidate’s teammate assumptions; home-page filters do not restrict the choices. Each contributes the skill’s teammate berry amount using its own species, level, and favorite bonus. Empty slots and deleted or unavailable teammates contribute zero, with unavailable selections identified in details. You can select distinct Pokémon of the same species. Return to Automatic estimate to restore the four-similar-teammates assumption.
 
 ```text
 Teammate strength / day = expected activations × berries per teammate
@@ -120,9 +120,19 @@ Temporary collection levels and island favorites also apply to the selected team
 
 The berry quantities and receiver-specific values follow the pinned [Neroli’s Lab Berry Burst implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/backend/src/services/simulation-service/team-simulator/skill-state/skill-effects/berry-burst/berry-burst-effect.ts). Disguise, Draco Meteor, Lunar Blessing, and Berry Juice are unchanged.
 
+### Island helping speed
+
+Favorite berries also shows two speed adjustments. **Greengrass Expert** uses **+10%** for the first (main) favorite and **−15%** for non-favorites; the two other favorites keep normal speed. Cyan Expert uses +20% and −35%. These percentages shorten or lengthen the help interval: +10% means an interval factor of 0.90, and −15% means 1.15. They are applied separately from the 35% subskill speed cap, to base frequency before the final rounding down.
+
+Choose **Custom / event** to edit either percentage from −50% through +50%. Custom retains the selected island’s current values. Ordinary island presets reset both to zero. The first berry slot must identify the main favorite when a main-favorite bonus applies; the app will not silently treat a second-slot berry as the main favorite.
+
+The factors affect daily production, total strength, ratings, forecasts, speed sorting, and teammate-choice ordering. With an active adjustment, the frequency shown in details is recalculated from species, level, nature, and Helping Speed subskills and labeled with the interval factor. It excludes ribbon and Helping Bonus effects; the production model separately includes Helping Bonus. Saved readings, builds, and backups are unchanged. Disabling the override restores the original reading.
+
+Speed percentages follow the pinned [Greengrass Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2025-08-11-greengrass-expert-mode.ts) and [Cyan Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2026-08-06-cyan-expert-mode.ts). Other Expert bonuses, such as the extra main skill level, are not applied automatically.
+
 ### What the estimates leave out
 
-Raw strength excludes recipe multipliers, critical meals, most support effects, teammate berries from skills other than ordinary Berry Burst, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
+Raw strength excludes recipe multipliers, critical meals, most support effects, teammate berries from skills other than ordinary Berry Burst, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, other event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
 
 These estimates support consistent comparisons under shared assumptions. They are not exact forecasts of Snorlax’s final strength.
 

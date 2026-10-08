@@ -6,7 +6,7 @@ A private Sites-hosted web app. This directory is separate from the original Mac
 - Browser OCR: Tesseract.js 6.0.1, tesseract.js-core 6.0.0, English @tesseract.js-data/eng 1.0.0 (4.0.0_best_int), served from this site.
 - IndexedDB sleep-atlas-collection stores Pokémon, versioned analyses, metrics, and screenshot blobs on each device. The original Mac SQLite database is not uploaded.
 - JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved. JSON exports contain Pokémon builds and settings; screenshot images, OCR, and analysis histories stay local and are excluded. Older backups containing screenshots can still be restored.
-- The default calculation model follows Python atlas-1.4, including automatic Berry Burst teammate estimates; the hosted app also supports selected teammates. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
+- The default calculation model follows Python atlas-1.5, including automatic Berry Burst teammate estimates; the hosted app also supports selected teammates. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
 - Home-screen manifest, Apple touch icon, and service worker. Internet is needed for initial loading, OCR download, and potentially Sites sign-in. Offline data can be cleared by the browser; export backups regularly.
 
 Run a local static server from dist to preview. No production data or credentials belong in this source tree. Deployment identity is in .openai/hosting.json; publishing uses the Sites workflow.
@@ -168,3 +168,14 @@ Details → Choose teammates can instead select 0–4 distinct saved Pokémon. E
 `berry-team.js` resolves IDs against current saved records. Preferences are stored transactionally in `sleep-atlas-mobile` cache key `berry-teams`; no entry means automatic and an empty array means selected zero teammates. Changes do not rewrite Pokémon builds, histories, or backups. Preview cache keys include resolved receiver species, levels, and multipliers, so edits, evolution, and missing records invalidate estimates. Reader v34 includes the module in the offline shell.
 
 Run `node tests/berry-team.mjs /path/to/fake-indexeddb/auto/index.mjs` for 53 Python automatic-team parity cases, mixed receiver strength/area/favorite bonuses, ratings and forecasts, live reference and cache invalidation, persistence, and saved-data preservation. Historical golden checks explicitly use zero selected teammates; new expected outputs are independently checked against Python and berry-value formulas.
+
+
+## Speed presets and editor choices (Reader v35)
+
+Teammate options sort by derived total strength descending, independent of collection filters and home sort. Skill level is a required select populated from the resolved main skill’s `RP.length`; species/Mew-effect changes refresh it. Existing imports keep legacy levels compatible. The editor clamps an over-cap selection and explicitly states that saving applies the lower level.
+
+Model `atlas-1.6-web` / Python `atlas-1.5` adds optional validated `settings.helpingFrequencyFactor` (0.5–1.5). Favorite preferences derive this from `favoriteSpeed` and `nonFavoriteSpeed` percentages: first favorite only receives the former, the other two receive zero, unmatched berries receive the latter. GGEX defaults to +10/−15 and Cyan EX +20/−35; legacy Expert preferences acquire these defaults. Custom preserves the current draft and allows ±50%; ordinary islands reset both to zero. A missing first slot cannot silently promote a subfavorite when a speed bonus applies.
+
+Apply the factor to base frequency before final floor, after the stat-factor rounding, outside the Helping Speed cap. Preview settings update production, ratings, forecasts and calculated own frequency without altering stored builds or history. Main-skill +1 and other Expert effects remain excluded. Sources are the pinned Neroli event implementations linked in the user guide.
+
+`node tests/island-speed.mjs` covers main/sub/nonfavorite effects, rounding boundaries, custom bounds, older preferences, Python parity, projected frequency and ratings, saved-stat preservation, every species/Mew skill cap, and strongest-first teammate choices. Existing favorites, preview, Berry Burst, Mew and offline suites remain applicable.

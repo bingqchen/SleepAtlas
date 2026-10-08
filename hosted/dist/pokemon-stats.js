@@ -11,7 +11,7 @@ export function calculatedStats(catalog,build){
   const bonus=name=>active.includes(name)?catalog.subskills.find(s=>s.name===name)?.amount||0:0;
   // The detail-screen frequency excludes Helping Bonus and team/energy effects.
   const speed=bonus('Helping Speed S')+bonus('Helping Speed M');
-  const frequencySeconds=nature?Math.floor(pythonRound4((1-.002*(build.level-1))*(2-nature.frequency)*(1-speed))*p.frequency):null;
+  const frequencySeconds=nature?Math.floor(pythonRound4((1-.002*(build.level-1))*(2-nature.frequency)*(1-speed))*(p.frequency*(build.settings?.helpingFrequencyFactor??1))):null;
   const carrySize=p.carrySize+5*p.previousEvolutions+bonus('Inventory Up S')+bonus('Inventory Up M')+bonus('Inventory Up L');
   return {frequencySeconds,carrySize};
 }

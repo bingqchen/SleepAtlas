@@ -1,7 +1,7 @@
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
 // Base formulas ported from atlas-1.3, with selectable favorite berry bonuses.
 // Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.5-web';
+export const MODEL_VERSION='atlas-1.6-web';
 export const favoriteMultiplier=settings=>settings.favoriteBerry?(settings.favoriteBerryMultiplier??2):1;
 export const berryValueAtLevel=(berry,level)=>Math.floor(Math.max(berry.value+level-1,berry.value*1.025**(level-1))+.5);
 export const hasTeamBerryBurst=skill=>skill?.name==='Berry Burst'&&!skill.modifierName;
@@ -56,6 +56,7 @@ export class Engine{
     for(const [key,low,high] of [['energyMultiplier',1,2.5],['sleepHours',0,12],['collectionHours',.25,12],['areaBonus',0,100],['teamHelpingBonus',0,4]])settings[key]=numeric(incoming[key]??settings[key],key,low,high,key==='teamHelpingBonus');
     if(typeof(incoming.favoriteBerry??false)!=='boolean')throw Error('Favorite berry must be true or false.');settings.favoriteBerry=incoming.favoriteBerry??false;
     if(incoming.favoriteBerryMultiplier!==undefined){if(![2,2.4].includes(incoming.favoriteBerryMultiplier))throw Error('Favorite berry multiplier must be 2 or 2.4.');settings.favoriteBerryMultiplier=incoming.favoriteBerryMultiplier}
+    if(incoming.helpingFrequencyFactor!==undefined)settings.helpingFrequencyFactor=numeric(incoming.helpingFrequencyFactor,'Island help interval factor',.5,1.5);
     const nickname=raw.nickname||p.displayName,notes=raw.notes??'';
     if(typeof nickname!=='string'||nickname.length>80)throw Error('Name must contain at most 80 characters.');
     if(typeof notes!=='string'||notes.length>4000)throw Error('Notes must contain at most 4,000 characters.');
@@ -67,7 +68,7 @@ export class Engine{
     const p=this.species.get(build.species),nature=this.natures.get(build.nature),active=build.subskills.filter((s,i)=>s&&level>=UNLOCKS[i]),settings=build.settings;
     const bonus=name=>active.includes(name)?this.subskills.get(name).amount:0;
     const speed=Math.min(.35,bonus('Helping Speed S')+bonus('Helping Speed M')+bonus('Helping Bonus')+.05*settings.teamHelpingBonus);
-    const frequency=Math.floor(pythonRound4((1-.002*(level-1))*(2-nature.frequency)*(1-speed))*p.frequency);
+    const frequency=Math.floor(pythonRound4((1-.002*(level-1))*(2-nature.frequency)*(1-speed))*(p.frequency*(settings.helpingFrequencyFactor??1)));
     const helpsPerHour=3600/frequency*settings.energyMultiplier;
     const ingRate=Math.min(1,p.ingredientPercentage/100*nature.ingredient*(1+bonus('Ingredient Finder S')+bonus('Ingredient Finder M')));
     const skillRate=Math.min(.999999,(p.name==='MEW'?(build.mewSkillChance??p.skillPercentage):p.skillPercentage)/100*nature.skill*(1+bonus('Skill Trigger S')+bonus('Skill Trigger M')));

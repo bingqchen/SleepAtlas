@@ -13,7 +13,7 @@ SPECIES = {p['name']: p for p in CATALOG['species']}
 NATURES = {n['name']: n for n in CATALOG['natures']}
 SUBSKILLS = {s['name']: s for s in CATALOG['subskills']}
 UNLOCKS = (10, 25, 50, 70, 80)
-MODEL_VERSION = 'atlas-1.4'
+MODEL_VERSION = 'atlas-1.5'
 MEW_SKILLS = ('Metronome','Charge Strength S','Charge Strength S (random)','Charge Strength M','Dream Shard Magnet S','Ingredient Magnet S','Energizing Cheer S','Charge Energy S','Energy For Everyone S','Tasty Chance S','Cooking Power-Up S','Extra Helpful S','Berry Burst')
 SAMPLE_COUNT = 1000
 DEFAULT_SETTINGS = {'energyMultiplier': 2.2, 'sleepHours': 8.5, 'collectionHours': 3, 'areaBonus': 0, 'favoriteBerry': False, 'teamHelpingBonus': 0}
@@ -86,6 +86,8 @@ def validate_build(raw):
         if incoming['favoriteBerryMultiplier'] not in (2, 2.4):
             raise ValueError('Favorite berry multiplier must be 2 or 2.4.')
         settings['favoriteBerryMultiplier'] = incoming['favoriteBerryMultiplier']
+    if 'helpingFrequencyFactor' in incoming:
+        settings['helpingFrequencyFactor']=number(incoming['helpingFrequencyFactor'],'Island help interval factor',.5,1.5)
     nickname = raw.get('nickname') or p['displayName']
     if not isinstance(nickname,str) or len(nickname) > 80:
         raise ValueError('Name must contain at most 80 characters.')
@@ -123,7 +125,7 @@ def calculate(build, level=None):
     settings=build['settings']
     bonus=lambda name: SUBSKILLS[name]['amount'] if name in active else 0
     speed=min(.35,bonus('Helping Speed S')+bonus('Helping Speed M')+bonus('Helping Bonus')+.05*settings['teamHelpingBonus'])
-    frequency=math.floor(round((1-.002*(level-1))*(2-nature['frequency'])*(1-speed),4)*p['frequency'])
+    frequency=math.floor(round((1-.002*(level-1))*(2-nature['frequency'])*(1-speed),4)*(p['frequency']*settings.get('helpingFrequencyFactor',1)))
     helps_per_hour=3600/frequency*settings['energyMultiplier']
     ing_rate=min(1,p['ingredientPercentage']/100*nature['ingredient']*(1+bonus('Ingredient Finder S')+bonus('Ingredient Finder M')))
     skill_rate=min(.999999,(build.get('mewSkillChance',p['skillPercentage']) if p['name']=='MEW' else p['skillPercentage'])/100*nature['skill']*(1+bonus('Skill Trigger S')+bonus('Skill Trigger M')))

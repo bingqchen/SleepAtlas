@@ -12,3 +12,8 @@ export function resolveMainSkill(catalog,build){
   const skill=selected?.skill||p?.skill,label=selected?(build.mainSkill==='Charge Strength S'?'Charge Strength S (fixed)':build.mainSkill):p?.skillLabel||'Choose a species';
   return {skill,label,effectiveLevel:Math.min(build.skillLevel||1,skill?.RP?.length||7)};
 }
+
+export function skillLevelOptions(catalog,build){
+  const {skill}=resolveMainSkill(catalog,build);
+  return Array.from({length:skill?.RP?.length||0},(_,i)=>i+1);
+}

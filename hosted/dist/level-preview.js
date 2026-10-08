@@ -15,12 +15,16 @@ export function createLevelPreview(catalog){
     let entry=cache.get(key);
     if(!entry){
       const saved=analysis.build,build={...saved,level:level??saved.level};
+      build.settings=favoriteSettings(build,catalog,favoriteBerries);
       if(changedLevel){
         build.carrySize=updatedCarrySize(catalog,build,saved);
         build.displayedFrequencySeconds=calculatedStats(catalog,build).frequencySeconds;
         build.frequencySource='calculated';
       }
-      build.settings=favoriteSettings(build,catalog,favoriteBerries);
+      if((build.settings.helpingFrequencyFactor??1)!==1){
+        build.displayedFrequencySeconds=calculatedStats(catalog,build).frequencySeconds;
+        build.frequencySource='calculated';
+      }
       entry={build:engine.validate(build)};cache.set(key,entry);
       if(cache.size>500)cache.delete(cache.keys().next().value);
     }

@@ -9,14 +9,14 @@ export const FAVORITE_ISLANDS=[
   {value:'lapis',label:'Lapis Lakeside',berries:['DURIN','MAGO','CHERI']},
   {value:'old-gold',label:'Old Gold Power Plant',berries:['GREPA','BLUK','BELUE']},
   {value:'amber',label:'Amber Canyon',berries:['YACHE','LUM','CHESTO']},
-  {value:'greengrass-expert',label:'Greengrass Isle (Expert)',berries:null},
-  {value:'cyan-expert',label:'Cyan Beach (Expert)',berries:null},
+  {value:'greengrass-expert',label:'Greengrass Isle (Expert)',berries:null,favoriteSpeed:10,nonFavoriteSpeed:-15},
+  {value:'cyan-expert',label:'Cyan Beach (Expert)',berries:null,favoriteSpeed:20,nonFavoriteSpeed:-35},
   {value:'custom',label:'Custom / event',berries:null}
 ];
 export function islandFavorites(id){
   const island=FAVORITE_ISLANDS.find(p=>p.value===id);
   if(!island)throw Error('Choose a supported island.');
-  return {berries:[...(island.berries||[])],multiplier:2,island:id};
+  return {berries:[...(island.berries||[])],multiplier:2,island:id,...(island.favoriteSpeed?{favoriteSpeed:island.favoriteSpeed,nonFavoriteSpeed:island.nonFavoriteSpeed}:{})};
 }
 const title=value=>value[0].toUpperCase()+value.slice(1).toLowerCase();
 export function berryOptions(catalog){
@@ -36,20 +36,30 @@ export function validateFavorites(value,catalog){
     if(island.berries&&(value.multiplier!==2||value.berries.length!==3||!island.berries.every(b=>value.berries.includes(b))))throw Error('Use this island’s favorite berries or choose Custom / event.');
     result.island=island.value;
   }
+  const preset=FAVORITE_ISLANDS.find(p=>p.value===value.island);
+  for(const key of ['favoriteSpeed','nonFavoriteSpeed']){
+    const speed=value[key]??preset?.[key]??0;
+    if(typeof speed!=='number'||!Number.isFinite(speed)||speed < -50||speed > 50)throw Error('Speed changes must be between −50% and +50%.');
+    if(preset&&preset.value!=='custom'&&speed!==(preset[key]||0))throw Error('Choose Custom / event to change this island’s speed settings.');
+    if(value[key]!==undefined||preset?.[key]!==undefined)result[key]=speed;
+  }
   return result;
 }
 export function favoriteSettings(build,catalog,configuration){
   const favorites=validateFavorites(configuration,catalog);
   if(favorites===null)return build.settings;
   const berry=catalog.species.find(p=>p.name===build.species)?.berry.name;
-  return {...build.settings,favoriteBerry:favorites.berries.includes(berry),favoriteBerryMultiplier:favorites.multiplier};
+  const favorite=favorites.berries.includes(berry);
+  const speed=berry===favorites.berries[0]?(favorites.favoriteSpeed||0):!favorite?(favorites.nonFavoriteSpeed||0):0;
+  return {...build.settings,favoriteBerry:favorite,favoriteBerryMultiplier:favorites.multiplier,helpingFrequencyFactor:1-speed/100};
 }
 export function describeFavorites(configuration,catalog){
   if(configuration===null)return 'Using each Pokémon’s saved favorite berry settings.';
   const names=new Map(berryOptions(catalog).map(b=>[b.value,b.name]));
   const island=FAVORITE_ISLANDS.find(p=>p.value===configuration.island);
   const prefix=island&&island.value!=='custom'?`${island.label} · `:'';
-  return configuration.berries.length
+  const speed=validateFavorites(configuration,catalog),speedText=(speed.favoriteSpeed||speed.nonFavoriteSpeed)?` Help intervals: first favorite ${100-(speed.favoriteSpeed||0)}%; other favorites 100%; non-favorites ${100-(speed.nonFavoriteSpeed||0)}%.`:'';
+  return (configuration.berries.length
     ?`${prefix}Favorite berries: ${configuration.berries.map(b=>names.get(b)).join(', ')} · ${configuration.multiplier}× berry strength.`
-    :`${prefix}No favorite berries selected. All berries use ordinary strength.`;
+    :`${prefix}No favorite berries selected. All berries use ordinary strength.`)+speedText;
 }

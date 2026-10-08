@@ -22,8 +22,9 @@ for(const [island,berries] of Object.entries(expectedIslands)){
   assert.throws(()=>validateFavorites({...config,multiplier:2.4},catalog));assert.throws(()=>validateFavorites({...config,berries:[]},catalog));
 }
 for(const island of ['greengrass','greengrass-expert','cyan-expert']){
-  assert.deepEqual(islandFavorites(island),{berries:[],multiplier:2,island});
-  assert.deepEqual(validateFavorites({...favorites,island},catalog),{...favorites,island});
+  const speeds=island==='greengrass-expert'?{favoriteSpeed:10,nonFavoriteSpeed:-15}:island==='cyan-expert'?{favoriteSpeed:20,nonFavoriteSpeed:-35}:{};
+  assert.deepEqual(islandFavorites(island),{berries:[],multiplier:2,island,...speeds});
+  assert.deepEqual(validateFavorites({...favorites,island},catalog),{...favorites,island,...speeds});
 }
 assert.equal(FAVORITE_ISLANDS.length,10);
 assert.throws(()=>islandFavorites('unknown'));assert.throws(()=>validateFavorites({...favorites,island:'unknown'},catalog));
