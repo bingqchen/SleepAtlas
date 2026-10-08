@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v33, October 7, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v34, October 8, 2026**, using calculation model `atlas-1.5-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -87,10 +87,11 @@ Skill probability uses the species rate, nature, and active Skill Trigger subski
 
 Berry specialists and all-rounders start with two berries per berry help; other specialties start with one. Active Berry Finding S adds one. Berry value grows with level using the larger of the catalog’s linear and exponential growth formulas.
 
-For supported berry-producing skills, total berries also include expected activations multiplied by the Pokémon’s own berries per activation. Berry Burst, Disguise, Draco Meteor, and Lunar Blessing use this treatment, with solo assumptions for team-dependent skills. The collection shows berry count for these builds instead of skill count. Details still show both metrics.
+For supported berry-producing skills, total berries also include expected activations multiplied by the Pokémon’s own berries per activation. Berry Burst, Disguise, Draco Meteor, and Lunar Blessing use this treatment. Ordinary Berry Burst also includes teammate berries, as described below; other team-dependent skills retain solo assumptions. The collection shows berry count for these builds instead of skill count. Details still show both metrics.
 
 ```text
 Total berries = gathered berries + modeled own berries from skills
+              + modeled Berry Burst teammate berries
 
 Total raw strength = berry strength
                    + gathered ingredients at their base values
@@ -101,15 +102,33 @@ Favorite berry multipliers affect berry strength, including modeled skill berrie
 
 Mew’s selected main skill is saved in its build. Supported selected effects use the same calculation rules, while Mew retains its own species data. Its rates are provisional; the base skill chance defaults to a 4% assumption and is editable. **Berry Juice is not currently a selectable Mew effect or a modeled berry source.**
 
+### Berry Burst teammates
+
+Ordinary **Berry Burst**, including Mew’s selected effect, assumes four teammates with the skill user’s berry type, level, and favorite bonus by default. At skill level 6 it produces **30 own + 20 teammate berries per activation**. This estimates a full team; it does not claim to know your actual teammates.
+
+Open the Pokémon’s details and choose **Choose teammates → Selected Pokémon** to select up to four saved teammates. Each contributes the skill’s teammate berry amount using its own species, level, and favorite bonus. Empty slots and deleted or unavailable teammates contribute zero, with unavailable selections identified in details. You can select distinct Pokémon of the same species. Return to Automatic estimate to restore the four-similar-teammates assumption.
+
+```text
+Teammate strength / day = expected activations × berries per teammate
+                       × sum(selected teammates’ berry values × favorite bonuses)
+                       × (1 + skill user’s area bonus / 100)
+```
+
+These are berries created by this Pokémon’s skill; teammates’ ordinary production is not added. Berry Finding S does not increase skill berries. Details separate own and teammate contributions, and total berries and total strength include each once. The same team assumptions apply to every reference build used for ratings.
+
+Temporary collection levels and island favorites also apply to the selected teammates. Future-level forecasts hold selected teammates at their current preview levels while advancing the skill user; automatic teammates follow the skill user’s projected level. Editing or evolving a selected teammate updates the estimate. Teammate choices are remembered for each Pokémon on this device, independently of saved builds and analysis history, and are excluded from JSON backups. The original Mac/Python calculator uses the automatic estimate; the teammate selector is in the hosted app.
+
+The berry quantities and receiver-specific values follow the pinned [Neroli’s Lab Berry Burst implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/backend/src/services/simulation-service/team-simulator/skill-state/skill-effects/berry-burst/berry-burst-effect.ts). Disguise, Draco Meteor, Lunar Blessing, and Berry Juice are unchanged.
+
 ### What the estimates leave out
 
-Raw strength excludes recipe multipliers, critical meals, most support effects, teammates’ skill berries, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
+Raw strength excludes recipe multipliers, critical meals, most support effects, teammate berries from skills other than ordinary Berry Burst, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
 
 These estimates support consistent comparisons under shared assumptions. They are not exact forecasts of Snorlax’s final strength.
 
 ## What a rating means
 
-Each metric is compared with **1,000 deterministic sample builds of the same species and level**. The comparison keeps ingredient choices, main skill selection and level, routine, and the build’s underlying carry allowance fixed. It varies nature and five unique subskills, applying only those unlocked at the chosen level and adjusting inventory bonuses.
+Each metric is compared with **1,000 deterministic sample builds of the same species and level**. The comparison keeps ingredient choices, main skill selection and level, routine, Berry Burst teammate assumptions, and the build’s underlying carry allowance fixed. It varies nature and five unique subskills, applying only those unlocked at the chosen level and adjusting inventory bonuses.
 
 The samples use all 25 natures uniformly and do not weight subskills by in-game rarity. A rating near 90 means the result is around the 90th percentile of these synthetic builds; ties share a midpoint rank. It is not a comparison with other species, the user’s collection, or the real player population.
 

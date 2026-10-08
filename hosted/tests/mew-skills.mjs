@@ -28,7 +28,7 @@ for(const mainSkill of MEW_SKILLS)for(let skillLevel=1;skillLevel<=8;skillLevel+
  close(r.gatheredBerryCount,engine.calculate(legacy).gatheredBerryCount);
  if(mainSkill==='Berry Burst'){
   close(r.skillBerriesPerTrigger,[11,14,21,24,27,30][Math.min(6,skillLevel)-1]);
-  close(r.skillBerryCount,r.skillTriggers*r.skillBerriesPerTrigger);
+  close(r.skillBerryCount,r.skillTriggers*(r.skillBerriesPerTrigger+r.teamBerriesPerTrigger));
   close(r.strength,r.berryStrength+r.ingredientStrength+r.skillStrength);
   assert.deepEqual(specialtyCounts(r,'all').map(m=>m.label),['berries']);
  }
@@ -56,7 +56,7 @@ assert.equal(analysis.build.skillLevel,8);assert.equal(analysis.current.skillBer
 assert.ok(analysis.warnings.some(w=>w.includes('5.5%')));
 assert.ok(analysis.warnings.some(w=>w.includes('Lv. 6')));
 assert.ok(analysis.current.ratings.berryCount>=0);
-for(const f of analysis.forecasts)close(f.skillBerryCount,f.skillTriggers*30);
+for(const f of analysis.forecasts)close(f.skillBerryCount,f.skillTriggers*50);
 assert.equal(JSON.stringify(p),snapshot,'Selection must not mutate shared species data');
 assert.equal(matchesProgression(legacy,berry,catalog),false);
 assert.equal(matchesProgression(berry,{...berry,mainSkill:'Metronome'},catalog),false);

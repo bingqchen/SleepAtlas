@@ -9,7 +9,8 @@ for(const [name,amounts] of Object.entries({SCEPTILE:[11,14,21,24,27,30],MIMIKYU
  for(let i=0;i<6;i++){
   const b=make(name,i+1),c=engine.calculate(b),p=engine.species.get(name);
   assert.equal(ownSkillBerries(p.skill,i+1),amounts[i]);
-  close(c.skillBerryCount,c.skillTriggers*amounts[i]);
+  const total=amounts[i]+(name==='SCEPTILE'?4*p.skill.teamBerryAmounts[i]:0);
+  close(c.ownSkillBerryCount,c.skillTriggers*amounts[i]);close(c.skillBerryCount,c.skillTriggers*total);
   close(c.berryCount,c.gatheredBerryCount+c.skillBerryCount);
   const value=Math.floor(Math.max(p.berry.value+b.level-1,p.berry.value*1.025**(b.level-1))+.5);
   close(c.skillBerryStrength,c.skillBerryCount*value);
@@ -19,7 +20,7 @@ for(const [name,amounts] of Object.entries({SCEPTILE:[11,14,21,24,27,30],MIMIKYU
   const boosted=engine.calculate({...b,settings:{...b.settings,favoriteBerry:true,areaBonus:50}});
   close(boosted.skillBerryStrength,c.skillBerryStrength*3);close(boosted.berryCount,c.berryCount);
   const bfs=engine.calculate({...b,subskills:['Berry Finding S','','','','']});
-  close(bfs.skillBerryCount,bfs.skillTriggers*amounts[i]);
+  close(bfs.skillBerryCount,bfs.skillTriggers*total);
  }
  const a=engine.analyze(make(name));assert.ok(a.current.ratings.berryCount>=0&&a.current.ratings.berryCount<=100);
  for(const f of a.forecasts)close(f.berryCount,f.gatheredBerryCount+f.skillBerryCount);

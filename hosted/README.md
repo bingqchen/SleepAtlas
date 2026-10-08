@@ -6,12 +6,12 @@ A private Sites-hosted web app. This directory is separate from the original Mac
 - Browser OCR: Tesseract.js 6.0.1, tesseract.js-core 6.0.0, English @tesseract.js-data/eng 1.0.0 (4.0.0_best_int), served from this site.
 - IndexedDB sleep-atlas-collection stores Pokémon, versioned analyses, metrics, and screenshot blobs on each device. The original Mac SQLite database is not uploaded.
 - JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved. JSON exports contain Pokémon builds and settings; screenshot images, OCR, and analysis histories stay local and are excluded. Older backups containing screenshots can still be restored.
-- The calculation model matches the original Python atlas-1.3 model. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
+- The default calculation model follows Python atlas-1.4, including automatic Berry Burst teammate estimates; the hosted app also supports selected teammates. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
 - Home-screen manifest, Apple touch icon, and service worker. Internet is needed for initial loading, OCR download, and potentially Sites sign-in. Offline data can be cleared by the browser; export backups regularly.
 
 Run a local static server from dist to preview. No production data or credentials belong in this source tree. Deployment identity is in .openai/hosting.json; publishing uses the Sites workflow.
 
-Validation: `node tests/check.mjs` compares 741 species/level cases and seven complete analyses to saved Python golden outputs. `node tests/storage.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` exercises IndexedDB behavior using the test-only fake-indexeddb 6.2.4 package. The app has no runtime npm dependency installation.
+Validation: `node tests/check.mjs` compares 741 species/level cases and 741 complete analyses under the historical solo baseline to saved Python golden outputs. `node tests/storage.mjs /absolute/path/to/fake-indexeddb/auto/index.mjs` exercises IndexedDB behavior using the test-only fake-indexeddb 6.2.4 package. The app has no runtime npm dependency installation.
 
 ## Screenshot reader update
 
@@ -157,3 +157,14 @@ Restore updates compatible existing IDs or unique same-species matches across ID
 Favorite berries includes six fixed standard-island presets at 2×, plus manual Greengrass/Expert areas and Custom / event. Greengrass and Expert selections reset berries to none and multiplier to 2×; Custom preserves the draft. Optional `island` metadata stays with the local preference, preserving older preference objects without migration. Apply is transactional; Cancel never changes the applied override. Fixed presets validate their berry sets and multiplier. Expert weekly berry effects can be entered manually at 2.4×; other Expert bonuses remain outside the model.
 
 Preset references: [Neroli’s pinned island data](https://github.com/nerolis-lab/nerolis-lab/tree/74e5068c1fa76518803caa8705798389da7f635d/common/src/types/island/islands), [research areas](https://www.serebii.net/pokemonsleep/researchareas.shtml), [official Amber Canyon announcement](https://www.pokemonsleep.net/en/news/333235333331303632383131303030383333/), and [official Expert Mode rules](https://www.pokemonsleep.net/en/news/323932383138363132393037393333363937/).
+
+
+## Berry Burst teammate estimates (Reader v34)
+
+Model `atlas-1.5-web` includes four estimated teammates for ordinary Berry Burst by default, including Mew’s selected effect. Each uses the caster’s berry value and favorite multiplier; skill level 6 now counts 30 own + 20 teammate berries per activation. Other berry-skill modifiers retain their existing solo calculations. Python `atlas-1.4` matches the automatic estimate.
+
+Details → Choose teammates can instead select 0–4 distinct saved Pokémon. Each receiver uses its species, level, and favorite multiplier; caster area bonus applies once. Empty/deleted selections contribute zero, with missing selections reported. Derived counts, strength, ratings, forecasts, ingredient alternatives, collection sorting, temporary levels, and island favorites use the same context. Future-level forecasts keep selected receiver levels fixed; automatic receiver levels follow the caster. Own/team contributions are separate and included once in totals. Berry Finding S affects gathered berries only.
+
+`berry-team.js` resolves IDs against current saved records. Preferences are stored transactionally in `sleep-atlas-mobile` cache key `berry-teams`; no entry means automatic and an empty array means selected zero teammates. Changes do not rewrite Pokémon builds, histories, or backups. Preview cache keys include resolved receiver species, levels, and multipliers, so edits, evolution, and missing records invalidate estimates. Reader v34 includes the module in the offline shell.
+
+Run `node tests/berry-team.mjs /path/to/fake-indexeddb/auto/index.mjs` for 53 Python automatic-team parity cases, mixed receiver strength/area/favorite bonuses, ratings and forecasts, live reference and cache invalidation, persistence, and saved-data preservation. Historical golden checks explicitly use zero selected teammates; new expected outputs are independently checked against Python and berry-value formulas.

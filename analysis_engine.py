@@ -13,7 +13,7 @@ SPECIES = {p['name']: p for p in CATALOG['species']}
 NATURES = {n['name']: n for n in CATALOG['natures']}
 SUBSKILLS = {s['name']: s for s in CATALOG['subskills']}
 UNLOCKS = (10, 25, 50, 70, 80)
-MODEL_VERSION = 'atlas-1.3'
+MODEL_VERSION = 'atlas-1.4'
 MEW_SKILLS = ('Metronome','Charge Strength S','Charge Strength S (random)','Charge Strength M','Dream Shard Magnet S','Ingredient Magnet S','Energizing Cheer S','Charge Energy S','Energy For Everyone S','Tasty Chance S','Cooking Power-Up S','Extra Helpful S','Berry Burst')
 SAMPLE_COUNT = 1000
 DEFAULT_SETTINGS = {'energyMultiplier': 2.2, 'sleepHours': 8.5, 'collectionHours': 3, 'areaBonus': 0, 'favoriteBerry': False, 'teamHelpingBonus': 0}
@@ -82,6 +82,10 @@ def validate_build(raw):
     if not isinstance(incoming.get('favoriteBerry',False), bool):
         raise ValueError('Favorite berry must be true or false.')
     settings['favoriteBerry'] = incoming.get('favoriteBerry',False)
+    if 'favoriteBerryMultiplier' in incoming:
+        if incoming['favoriteBerryMultiplier'] not in (2, 2.4):
+            raise ValueError('Favorite berry multiplier must be 2 or 2.4.')
+        settings['favoriteBerryMultiplier'] = incoming['favoriteBerryMultiplier']
     nickname = raw.get('nickname') or p['displayName']
     if not isinstance(nickname,str) or len(nickname) > 80:
         raise ValueError('Name must contain at most 80 characters.')
@@ -154,13 +158,20 @@ def calculate(build, level=None):
     gathered_berries=(normal_helps*(1-ing_rate)+overflow)*berry_amount
     skill,skill_label,effective_level=resolve_main_skill(build)
     skill_berries_per_trigger=own_skill_berries(skill,effective_level)
-    skill_berries=triggers*skill_berries_per_trigger
+    own_skill_berries_count=triggers*skill_berries_per_trigger
+    team_berry_skill=skill.get('name')=='Berry Burst' and not skill.get('modifierName')
+    team_berries_per_trigger=4*skill['teamBerryAmounts'][effective_level-1] if team_berry_skill else 0
+    team_skill_berries=triggers*team_berries_per_trigger
+    skill_berries=own_skill_berries_count+team_skill_berries
     berries=gathered_berries+skill_berries
     base=p['berry']['value']
     berry_value=math.floor(max(base+level-1,base*1.025**(level-1))+.5)
     area=1+settings['areaBonus']/100
-    skill_berry_strength=skill_berries*berry_value*(2 if settings['favoriteBerry'] else 1)*area
-    berry_strength=berries*berry_value*(2 if settings['favoriteBerry'] else 1)*area
+    own_value=berry_value*(settings.get('favoriteBerryMultiplier',2) if settings['favoriteBerry'] else 1)
+    own_skill_berry_strength=own_skill_berries_count*own_value*area
+    team_skill_berry_strength=team_skill_berries*own_value*area
+    skill_berry_strength=own_skill_berry_strength+team_skill_berry_strength
+    berry_strength=gathered_berries*own_value*area+skill_berry_strength
     ingredient_strength=sum(quantities[k]*v['value'] for k,v in possible.items())*area
     skill_index=effective_level-1
     direct=skill.get('strengthAmountsMean') or skill.get('strengthAmounts')
@@ -168,7 +179,7 @@ def calculate(build, level=None):
     direct_supported=bool(direct) and not skill.get('modifierName')
     skill_strength=triggers*direct[skill_index]*area if direct_supported else 0.0
     random_ingredients=triggers*skill['ingredientAmounts'][skill_index] if skill.get('name')=='Ingredient Magnet S' and not skill.get('modifierName') else 0
-    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or skill.get('name') not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
+    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'ownSkillBerryCount':own_skill_berries_count,'ownSkillBerryStrength':own_skill_berry_strength,'teamSkillBerryCount':team_skill_berries,'teamSkillBerryStrength':team_skill_berry_strength,'teamBerriesPerTrigger':team_berries_per_trigger,'teamBerryMode':'automatic' if team_berry_skill else None,'teamMemberCount':4 if team_berry_skill else 0,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or skill.get('name') not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
 
 @lru_cache(maxsize=128)
 def reference_builds(serialized):
@@ -219,7 +230,10 @@ def analyze(raw):
         if effective_level<build['skillLevel']:warnings.append(f'{skill_label} uses its current maximum of Lv. {effective_level}; Mew’s stored skill level remains {build["skillLevel"]}.')
 
     if current['berrySkill']:
-        warnings.append(f'{skill_label}: counts {current["skillBerriesPerTrigger"]} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.')
+        if current['teamBerryMode']:
+            warnings.append(f'{skill_label}: {current["skillBerriesPerTrigger"]} own + {current["teamBerriesPerTrigger"]} teammate berries per trigger. Automatic estimate assumes four teammates at this Pokémon’s level, berry type, and favorite bonus.')
+        else:
+            warnings.append(f'{skill_label}: counts {current["skillBerriesPerTrigger"]} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.')
         if p['skill'].get('modifierName')=='Disguise':warnings.append('Disguise uses normal bursts; the sleep-reset Great Success bonus is excluded.')
         if p['skill'].get('modifierName')=='Draco Meteor':warnings.append('Draco Meteor assumes one Dragon species and no Latias bonus.')
         if p['skill'].get('modifierName')=='Lunar Blessing':warnings.append('Lunar Blessing assumes one Psychic species; energy support is excluded.')

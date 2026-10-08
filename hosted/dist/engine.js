@@ -1,8 +1,10 @@
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
 // Base formulas ported from atlas-1.3, with selectable favorite berry bonuses.
 // Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.4-web';
+export const MODEL_VERSION='atlas-1.5-web';
 export const favoriteMultiplier=settings=>settings.favoriteBerry?(settings.favoriteBerryMultiplier??2):1;
+export const berryValueAtLevel=(berry,level)=>Math.floor(Math.max(berry.value+level-1,berry.value*1.025**(level-1))+.5);
+export const hasTeamBerryBurst=skill=>skill?.name==='Berry Burst'&&!skill.modifierName;
 export function ownSkillBerries(skill,level){
   // Solo baselines from the pinned Neroli's Lab skill definitions. Team bonuses
   // and Disguise's sleep-reset Great Success are deliberately excluded.
@@ -61,7 +63,7 @@ export class Engine{
     if(raw.frequencySource!==undefined){if(!['recorded','calculated'].includes(raw.frequencySource))throw Error('Invalid helping frequency source.');recorded.frequencySource=raw.frequencySource}
     return {species:raw.species,nickname:nickname.trim()||p.displayName,nature:raw.nature,level,skillLevel,subskills:[...raw.subskills],ingredients:[...raw.ingredients],settings,notes,carrySize:numeric(raw.carrySize??p.carrySize,'Carry limit',1,200,true),...recorded,...selected};
   }
-  calculate(build,level=build.level){
+  calculate(build,level=build.level,{berryTeam=null}={}){
     const p=this.species.get(build.species),nature=this.natures.get(build.nature),active=build.subskills.filter((s,i)=>s&&level>=UNLOCKS[i]),settings=build.settings;
     const bonus=name=>active.includes(name)?this.subskills.get(name).amount:0;
     const speed=Math.min(.35,bonus('Helping Speed S')+bonus('Helping Speed M')+bonus('Helping Bonus')+.05*settings.teamHelpingBonus);
@@ -80,24 +82,38 @@ export class Engine{
     for(const duration of intervals){const helps=duration*helpsPerHour,effective=Math.min(helps,carry/itemsPerHelp);normalHelps+=effective;overflow+=helps-effective;triggers+=skillExpectation(effective,skillRate,['skill','all'].includes(p.specialty)?2:1)}
     const quantities=new Map([...possible.keys()].map(k=>[k,0]));for(const slot of slots){const name=slot.ingredient.name;quantities.set(name,quantities.get(name)+normalHelps*ingRate/slots.length*slot.amount)}
     const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build);
-    const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount,skillBerriesPerTrigger=ownSkillBerries(skill,effectiveLevel),skillBerryCount=triggers*skillBerriesPerTrigger;
-    const berries=gatheredBerryCount+skillBerryCount,base=p.berry.value,berryValue=Math.floor(Math.max(base+level-1,base*1.025**(level-1))+.5),area=1+settings.areaBonus/100;
-    const skillBerryStrength=skillBerryCount*berryValue*favoriteMultiplier(settings)*area;
-    const berryStrength=berries*berryValue*favoriteMultiplier(settings)*area,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
+    const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount,skillBerriesPerTrigger=ownSkillBerries(skill,effectiveLevel),ownSkillBerryCount=triggers*skillBerriesPerTrigger;
+    const berryValue=berryValueAtLevel(p.berry,level),area=1+settings.areaBonus/100,ownValue=berryValue*favoriteMultiplier(settings);
+    const teamBerrySkill=hasTeamBerryBurst(skill),teamBerryMode=teamBerrySkill?(berryTeam===null?'automatic':'selected'):null;
+    let teammates=[];
+    if(teamBerrySkill){
+      if(berryTeam===null)teammates=Array.from({length:4},()=>({species:build.species,level,favoriteMultiplier:favoriteMultiplier(settings)}));
+      else{
+        if(!Array.isArray(berryTeam)||berryTeam.length>4)throw Error('Choose up to four teammates.');
+        teammates=berryTeam.map(member=>{
+          if(!member||!this.species.has(member.species)||![1,2,2.4].includes(member.favoriteMultiplier))throw Error('Invalid teammate berry settings.');
+          return {...member,level:numeric(member.level,'Teammate level',1,100,true)};
+        });
+      }
+    }
+    const teamAmount=teamBerrySkill?skill.teamBerryAmounts[effectiveLevel-1]:0,teamBerriesPerTrigger=teamAmount*teammates.length;
+    const teamSkillBerryCount=triggers*teamBerriesPerTrigger,teamSkillBerryStrength=triggers*teamAmount*teammates.reduce((sum,m)=>sum+berryValueAtLevel(this.species.get(m.species).berry,m.level)*m.favoriteMultiplier,0)*area;
+    const ownSkillBerryStrength=ownSkillBerryCount*ownValue*area,skillBerryCount=ownSkillBerryCount+teamSkillBerryCount,skillBerryStrength=ownSkillBerryStrength+teamSkillBerryStrength;
+    const berries=gatheredBerryCount+skillBerryCount,berryStrength=gatheredBerryCount*ownValue*area+skillBerryStrength,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
     const index=effectiveLevel-1,direct=skill.strengthAmountsMean||skill.strengthAmounts,supported=!!direct&&!skill.modifierName;
     const skillStrength=supported?triggers*direct[index]*area:0,randomIngredients=skill.name==='Ingredient Magnet S'&&!skill.modifierName?triggers*skill.ingredientAmounts[index]:0;
-    return {level,skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
+    return {level,skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
   }
-  analyze(raw){
-    const build=this.validate(raw),current=this.calculate(build),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount','berryCount'];
+  analyze(raw,context={}){
+    const build=this.validate(raw),current=this.calculate(build,build.level,context),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount','berryCount'];
     const reference=Object.fromEntries(keys.map(k=>[k,[]])),ingredients=new Map();
     const inv=b=>b.subskills.reduce((n,s,i)=>n+(s&&UNLOCKS[i]<=b.level&&s.startsWith('Inventory Up')?this.subskills.get(s).amount:0),0);
     const baseCarry=Math.max(1,build.carrySize-inv(build));
-    for(const sample of this.catalog.referenceBuilds){const b={...build,...sample};b.carrySize=baseCarry+inv(b);const r=this.calculate(b);for(const key of keys)reference[key].push(r[key]);for(const item of r.ingredients){if(!ingredients.has(item.name))ingredients.set(item.name,[]);ingredients.get(item.name).push(item.count)}}
+    for(const sample of this.catalog.referenceBuilds){const b={...build,...sample};b.carrySize=baseCarry+inv(b);const r=this.calculate(b,b.level,context);for(const key of keys)reference[key].push(r[key]);for(const item of r.ingredients){if(!ingredients.has(item.name))ingredients.set(item.name,[]);ingredients.get(item.name).push(item.count)}}
     const percentile=(value,values)=>evenRound(100*values.reduce((n,x)=>n+(x<value-1e-7?1:Math.abs(x-value)<=1e-7?.5:0),0)/values.length);
     current.ratings=Object.fromEntries(keys.map(k=>[k,percentile(current[k],reference[k])]));for(const item of current.ingredients)item.rating=item.count?percentile(item.count,ingredients.get(item.name)):null;
-    const forecasts=[30,60,70,80].filter(l=>l>build.level).map(l=>this.calculate(build,l)),ingredientAlternatives=[];
-    for(const s30 of p.ingredient30)for(const s60 of p.ingredient60){const variant={...build,ingredients:[build.ingredients[0],s30.ingredient.name,s60.ingredient.name]},r=this.calculate(variant,60);ingredientAlternatives.push({slots:variant.ingredients,ingredients:r.ingredients,ingredientCount:r.ingredientCount,strength:r.strength})}
+    const forecasts=[30,60,70,80].filter(l=>l>build.level).map(l=>this.calculate(build,l,context)),ingredientAlternatives=[];
+    for(const s30 of p.ingredient30)for(const s60 of p.ingredient60){const variant={...build,ingredients:[build.ingredients[0],s30.ingredient.name,s60.ingredient.name]},r=this.calculate(variant,60,context);ingredientAlternatives.push({slots:variant.ingredients,ingredients:r.ingredients,ingredientCount:r.ingredientCount,strength:r.strength})}
     const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build);
     const warnings=[];if(build.subskills.some((s,i)=>!s&&UNLOCKS[i]<=build.level))warnings.push('Some unlocked subskills are unknown; those slots contribute no bonus.');
     if(p.name==='MEW'){
@@ -106,7 +122,7 @@ export class Engine{
       if(effectiveLevel<build.skillLevel)warnings.push(`${skillLabel} uses its current maximum of Lv. ${effectiveLevel}; Mew’s stored skill level remains ${build.skillLevel}.`);
     }
     if(current.berrySkill){
-      warnings.push(`${skillLabel}: counts ${current.skillBerriesPerTrigger} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.`);
+      warnings.push(current.teamBerryMode?`${skillLabel}: ${current.skillBerriesPerTrigger} own + ${current.teamBerriesPerTrigger} teammate berries per trigger. ${current.teamBerryMode==='automatic'?'Automatic estimate assumes four teammates at this Pokémon’s level, berry type, and favorite bonus.':'Uses the selected teammates’ levels, berry types, and favorite bonuses; empty or missing slots contribute zero.'}`:`${skillLabel}: counts ${current.skillBerriesPerTrigger} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.`);
       if(p.skill.modifierName==='Disguise')warnings.push('Disguise uses normal bursts; the sleep-reset Great Success bonus is excluded.');
       if(p.skill.modifierName==='Draco Meteor')warnings.push('Draco Meteor assumes one Dragon species and no Latias bonus.');
       if(p.skill.modifierName==='Lunar Blessing')warnings.push('Lunar Blessing assumes one Psychic species; energy support is excluded.');
