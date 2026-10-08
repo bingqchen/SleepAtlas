@@ -197,3 +197,12 @@ The overflow action and dialog are now **Select island**. Both Expert presets de
 `favoriteSkillLevelBonus` derives the effect; `level-preview` passes it as context through current, reference, future-level, and ingredient-alternative calculations. `resolveMainSkill` accepts an explicit bonus and caps the resolved skill (including Mew selections). Its default remains zero for RP and editor options. `current.mainSkillLevel` reports the effective level and `current.mainSkillLevelBonus` reports the applied increase. Builds and saved levels remain unchanged. The hosted model is `atlas-1.8-web`; the original Python calculator has no island-selection context and remains `atlas-1.6`.
 
 `tests/island-skill.mjs` verifies primary-only eligibility, caps for every species/Mew effect, RP independence, production/forecast/reference consistency, repeated previews, preference migration/reset, and UI draft controls. Existing favorite-berry persistence tests also cover reloads and unchanged backups/history.
+
+
+## Favorite-type skill trigger option (Reader v38)
+
+Select island offers a 1× / 1.25× skill-trigger selector for both Expert presets and Custom / event. The optional `skillTriggerMultiplier` preference defaults to 1 for existing data; normal island presets reset it. All three favorite types qualify, while nonfavorites stay at 1. Explicit event stacking with the berry-strength multiplier is allowed. The device preference persists separately from Pokémon records/backups.
+
+`favoriteSkillTriggerMultiplier` derives the per-species context value. The hosted `atlas-1.9-web` engine multiplies nature/subskill/Mew-adjusted chance before the probability cap and banking expectation. Current, reference, forecast, ingredient-alternative, and temporary-level calculations share this context. The primary-only +1 skill level remains independent. RP ignores the context and saved stats stay unchanged; the original Python calculator remains `atlas-1.6` without these island controls.
+
+`tests/island-trigger.mjs` covers all favorite positions, nonfavorites, default/reset/Custom behavior, Mew probability caps, banking, level bonuses, RP invariance, preview caching, and actual UI handlers. `tests/favorite-berries.mjs` checks trigger preference persistence/reload and untouched records/history/backups.

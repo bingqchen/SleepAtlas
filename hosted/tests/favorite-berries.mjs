@@ -87,6 +87,13 @@ for(const configuration of [islandFavorites('cyan'),{...favorites,island:'greeng
   close(view.current.berryStrength,original.current.berryStrength*(configuration.berries.includes('DURIN')?configuration.multiplier/2:0.5));
   assert.deepEqual(await api('/api/pokemon/'+id),before);assert.deepEqual((await api('/api/backup')).pokemon,backup.pokemon);
 }
+ctx.configuration={...islandFavorites('greengrass-expert'),berries:['DURIN','GREPA','MAGO'],skillTriggerMultiplier:1.25};
+await vm.runInContext('applyFavoriteBerries(configuration)',ctx);
+const triggerPreference=validateFavorites(await read(),catalog);assert.equal(triggerPreference.skillTriggerMultiplier,1.25);
+const triggerView=createLevelPreview(catalog)(before.analysis,null,{full:true,favoriteBerries:triggerPreference});
+const normalView=createLevelPreview(catalog)(before.analysis,null,{full:true,favoriteBerries:{...triggerPreference,skillTriggerMultiplier:1}});
+close(triggerView.current.skillRate,normalView.current.skillRate*1.25);assert.ok(triggerView.current.skillTriggers>normalView.current.skillTriggers);assert.equal(triggerView.current.rp,normalView.current.rp);
+assert.deepEqual(await api('/api/pokemon/'+id),before);assert.deepEqual((await api('/api/backup')).pokemon,backup.pokemon);
 await vm.runInContext('applyFavoriteBerries(null)',ctx);assert.equal(await read(),null);
 ctx.configuration={berries:['MAGO','MAGO'],multiplier:2};await vm.runInContext('applyFavoriteBerries(configuration)',ctx);assert.equal(await read(),null);assert.match(node('favorite-berries-status').textContent,/different berry/);
 cacheDB.close();(await database()).close();

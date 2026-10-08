@@ -37,6 +37,11 @@ export function validateFavorites(value,catalog){
     result.island=island.value;
   }
   const preset=FAVORITE_ISLANDS.find(p=>p.value===value.island);
+  if(value.skillTriggerMultiplier!==undefined){
+    if(![1,1.25].includes(value.skillTriggerMultiplier))throw Error('Choose a 1× or 1.25× skill trigger rate.');
+    if(preset&&preset.value!=='custom'&&!preset.value.endsWith('-expert')&&value.skillTriggerMultiplier!==1)throw Error('Choose an Expert island or Custom / event for a skill trigger bonus.');
+    result.skillTriggerMultiplier=value.skillTriggerMultiplier;
+  }
   const skillBonus=value.mainSkillLevelBonus??preset?.mainSkillLevelBonus??0;
   if(![0,1].includes(skillBonus))throw Error('Choose no main skill boost or +1 level.');
   if(preset&&preset.value!=='custom'&&skillBonus!==(preset.mainSkillLevelBonus||0))throw Error('Choose Custom / event to change this island’s main skill boost.');
@@ -63,6 +68,11 @@ export function favoriteSkillLevelBonus(build,catalog,configuration){
   const berry=catalog.species.find(p=>p.name===build.species)?.berry.name;
   return favorites?.berries[0]===berry?(favorites?.mainSkillLevelBonus||0):0;
 }
+export function favoriteSkillTriggerMultiplier(build,catalog,configuration){
+  const favorites=validateFavorites(configuration,catalog);
+  const berry=catalog.species.find(p=>p.name===build.species)?.berry.name;
+  return favorites?.berries.includes(berry)?(favorites.skillTriggerMultiplier??1):1;
+}
 export function describeFavorites(configuration,catalog){
   if(configuration===null)return 'Using each Pokémon’s saved favorite berry settings.';
   const names=new Map(berryOptions(catalog).map(b=>[b.value,b.name]));
@@ -70,7 +80,8 @@ export function describeFavorites(configuration,catalog){
   const prefix=island&&island.value!=='custom'?`${island.label} · `:'';
   const speed=validateFavorites(configuration,catalog),speedText=(speed.favoriteSpeed||speed.nonFavoriteSpeed)?` Help intervals: first favorite ${100-(speed.favoriteSpeed||0)}%; other favorites 100%; non-favorites ${100-(speed.nonFavoriteSpeed||0)}%.`:'';
   const skillText=speed.mainSkillLevelBonus?' Primary favorite: main skill +1 level, up to its maximum.':'';
+  const triggerText=speed.skillTriggerMultiplier===1.25?' All favorite types: 1.25× skill trigger chance.':'';
   return (configuration.berries.length
     ?`${prefix}Favorite berries: ${configuration.berries.map(b=>names.get(b)).join(', ')} · ${configuration.multiplier}× berry strength.`
-    :`${prefix}No favorite berries selected. All berries use ordinary strength.`)+speedText+skillText;
+    :`${prefix}No favorite berries selected. All berries use ordinary strength.`)+speedText+skillText+triggerText;
 }
