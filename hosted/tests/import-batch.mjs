@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {newImportBatch,runImportBatch,batchSummary} from '../dist/import-batch.js';
+const files=Array.from({length:3},(_,i)=>new File([String(i)],`photo-${i}.jpg`,{type:'image/jpeg'}));
+assert.throws(()=>newImportBatch([]));assert.throws(()=>newImportBatch(Array(21).fill(files[0])));
+assert.throws(()=>newImportBatch(Array(9).fill(files[0]),'single'));
+assert.throws(()=>newImportBatch([new File(['x'],'bad.txt',{type:'text/plain'})]));
+assert.equal(newImportBatch(files,'single').entries.length,1);
+const batch=newImportBatch(files),reads=[],saved=[],writes=[];
+const complete={fields:{species:'MAREEP'},imageIds:[],review:{ready:true,reasons:[]}};
+await runImportBatch(batch,{read:async group=>{reads.push(group);if(group[0]===files[2])throw Error('Reader unavailable');return group[0]===files[1]?{fields:{level:11},review:{ready:false,reasons:['Missing species']}}:structuredClone(complete)},save:async(build,ids,token)=>{saved.push({build,token});return {id:crypto.randomUUID(),deduplicated:0}},persist:async value=>writes.push(structuredClone(value))});
+assert.ok(reads.every(group=>group.length===1));assert.equal(saved.length,1);assert.equal(saved[0].token,batch.entries[0].id);
+assert.deepEqual(batchSummary(batch),{saved:1,updated:0,review:2,pending:0,skipped:0,total:3});
+assert.equal(batch.entries[0].files.length,0);assert.equal(batch.entries[2].files.length,1);
+assert.match(batch.entries[2].result.review.reasons[0],/Reader unavailable/);
+await runImportBatch(batch,{read:()=>assert.fail('Do not reread completed entries'),save:()=>assert.fail('Do not resave'),persist:()=>assert.fail('No redundant writes')});
+// A failed durable write must stop the queue before any Pokémon is saved.
+const interrupted=newImportBatch(files);let saves=0;
+await assert.rejects(runImportBatch(interrupted,{read:async()=>structuredClone(complete),save:async()=>{saves++},persist:async()=>{throw Error('Quota')}}),/Quota/);
+assert.equal(saves,0);
+// Commit succeeded, then persisting the queue failed: resume the old pending
+// snapshot with the same stable token and image IDs.
+const retry=newImportBatch([files[0]]),durable=structuredClone(retry),tokens=[];
+await assert.rejects(runImportBatch(retry,{read:async()=>structuredClone(complete),save:async(b,ids,token)=>{tokens.push(token);return {id:'saved'}},persist:async b=>{if(b.entries[0].status==='saved')throw Error('Quota')}}));
+await runImportBatch(durable,{read:async()=>structuredClone(complete),save:async(b,ids,token)=>{tokens.push(token);return {id:'saved',alreadySaved:true}},persist:async()=>{}});
+assert.equal(tokens[0],tokens[1]);
+const allReady=newImportBatch(files);let autoSaves=0;
+await runImportBatch(allReady,{read:async()=>structuredClone(complete),save:async()=>{autoSaves++;return {id:crypto.randomUUID()}},persist:async()=>{}});
+assert.equal(autoSaves,3);assert.equal(batchSummary(allReady).review,0);assert.equal(batchSummary(allReady).pending,0);
+await import(process.argv[2]);
+const catalog=fs.readFileSync(new URL('../dist/catalog.json',import.meta.url),'utf8');globalThis.fetch=async()=>new Response(catalog);
+const {api,database,savePictures,discardPictures}=await import('../dist/local-api.js');
+const build=JSON.parse(fs.readFileSync(new URL('python-golden.json',import.meta.url)))[0].build;
+const picture={id:crypto.randomUUID(),filename:'photo.jpg',blob:files[0],mime:'image/jpeg',text:[],pendingReview:true,createdAt:'2020-01-01T00:00:00Z'};
+await savePictures([picture]);await savePictures([picture]);
+const db=await database(),getPicture=id=>new Promise((resolve,reject)=>{const r=db.transaction('screenshots').objectStore('screenshots').get(id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+assert.ok(await getPicture(picture.id),'Pending reviews survive orphan cleanup');
+const body={build:{...build,nickname:'Keep nickname'},imageIds:[picture.id],importToken:crypto.randomUUID()},save=body=>api('/api/pokemon',{method:'POST',body:JSON.stringify(body)});
+const row=await save(body);assert.equal((await save(body)).alreadySaved,true);assert.equal((await api('/api/pokemon/'+row.id)).historyCount,1);
+await savePictures([picture]);assert.equal((await getPicture(picture.id)).owner,row.id,'Retries cannot erase ownership');
+await discardPictures([picture.id]);assert.ok(await getPicture(picture.id),'Skip never deletes attached photos');
+const updated=await save({build:{...build,level:build.level+1,nickname:''},importToken:crypto.randomUUID()});assert.equal(updated.id,row.id);
+assert.equal((await api('/api/pokemon/'+row.id)).analysis.build.nickname,'Keep nickname');
+assert.equal((await save(body)).alreadySaved,true,'Receipts survive a later progression update');
+assert.equal((await api('/api/pokemon/'+row.id)).historyCount,2);
+const unused={...picture,id:crypto.randomUUID()};await savePictures([unused]);await discardPictures([unused.id]);assert.equal(await getPicture(unused.id),undefined);
+assert.ok(!JSON.stringify(await api('/api/backup')).includes('importToken'));
+db.close();console.log('Passed: independent photos, partial failures, persisted retry tokens, single-Pokémon grouping, deduplication, history and pending/owned screenshot preservation.');

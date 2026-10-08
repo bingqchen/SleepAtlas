@@ -1,7 +1,7 @@
-const VERSION='v38',CACHE=`sleep-atlas-hosted-${VERSION}`;
+const VERSION='v39',CACHE=`sleep-atlas-hosted-${VERSION}`;
 // Bump this independent cache whenever the pinned OCR files change.
 const OCR_CACHE='sleep-atlas-ocr-6.0.1-core-6.0.0-eng-1.0.0';
-const SHELL=['/','/style.css','/app.js','/offline.js','/collection.js','/detail-navigation.js','/level-preview.js','/favorite-berries.js','/berry-team.js','/evolution.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/rp.js','/main-skills.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
+const SHELL=['/','/style.css','/app.js','/offline.js','/collection.js','/detail-navigation.js','/level-preview.js','/favorite-berries.js','/berry-team.js','/evolution.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/rp.js','/main-skills.js','/ocr.js','/import-batch.js','/import-review.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];
 // OEM 1 in ocr.js uses LSTM. Include both CPU variants, each with embedded WASM.
 const OCR=['/vendor/worker.min.js','/vendor/tesseract-core-lstm.wasm.js','/vendor/tesseract-core-simd-lstm.wasm.js','/vendor/eng.traineddata.gz'];
 const FILES=[...SHELL,...OCR],cacheName=path=>OCR.includes(path)?OCR_CACHE:CACHE;

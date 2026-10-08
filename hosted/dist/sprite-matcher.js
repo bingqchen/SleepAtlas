@@ -1,3 +1,4 @@
+import {parseOCR} from './ocr-parser.js';
 // Small on-device picture descriptors. No screenshot pixels leave the device.
 const SIZE=24;
 export function spriteDescriptor({data,width,height}){
@@ -42,10 +43,12 @@ let references;
 export function portraitRegion(lines,w,h){
   // Anchor the small portrait beside the Pokémon level. A right-side ingredient
   // unlock marker cannot anchor this crop; keep an uncertain picture unselected.
-  const headers=lines.filter(l=>l.y<.32&&/\b(?:Lv\.?|Level|v\.)\s*\d{1,3}\b/i.test(l.text));
+  const headers=lines.filter(l=>l.y<.32&&/\b(?:Lv\.?|Level|v\.)\s*[a-z0-9]{1,3}\b/i.test(l.text));
   // Segmentation can merge the portrait with its level/nickname. The level's
   // word box stays accurate even when the complete line starts in the picture.
-  const words=headers.flatMap(l=>(l.words||[]).filter(w=>/^(?:Lv\.?|Level|v\.)(?:\s*\d{1,3})?$/i.test(w.text.trim())));
+  // The Lv prefix can still locate the portrait when OCR cannot read the
+  // number (for example, “Lv.Tl”). This does not guess the Pokémon's level.
+  const words=headers.flatMap(l=>(l.words||[]).filter(w=>/^(?:Lv\.?|Level|v\.)(?:\s*[a-z0-9]{1,3})?$/i.test(w.text.trim())));
   const level=[...words,...headers].find(l=>l.x>.15&&l.x<.40&&l.y<.32);
   if(!level)return null;
   const x=Math.max(0,Math.round((level.x-.155)*w)),y=Math.max(0,Math.round(level.y*h-.09*w));
@@ -58,5 +61,19 @@ export async function identifySprite(canvas,lines){
   const descriptor=spriteDescriptor(canvas.getContext('2d').getImageData(region.x,region.y,region.width,region.height));if(!descriptor)return null;
   if(!references)references=fetch('/sprite-features.json').then(r=>{if(!r.ok)throw Error('Picture references unavailable');return r.json()}).catch(e=>{references=null;throw e});
   const ranked=rankSprites(descriptor,(await references).entries);
-  return {species:confidentSpriteMatch(ranked),candidates:ranked.slice(0,3)};
+  return {species:confidentSpriteMatch(ranked),candidates:ranked};
+}
+export function contextualSpriteMatch(ranked,lines,ingredients,catalog){
+  const best=ranked?.[0];if(!best||best.score>=.020)return null;
+  const clean=text=>String(text).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const trusted=lines.filter(l=>l.confidence>=.8),skills=new Set(catalog.species.filter(p=>trusted.some(l=>l.y>.3&&l.y<.65&&clean(l.text).includes(clean(p.skillLabel)))).map(p=>p.skillLabel));
+  // Use a confidently read main skill, two ingredient icons,
+  // and carry capacity as independent constraints. Never promote an image
+  // candidate that wasn't already the best overall portrait match.
+  if(skills.size!==1)return null;
+  const slots=[1,2].map(slot=>ingredients.filter(m=>m.slot===slot&&m.ingredient));
+  if(slots.some(ms=>!ms.length||new Set(ms.map(m=>m.ingredient)).size!==1||new Set(ms.map(m=>m.amount).filter(Number.isInteger)).size>1))return null;
+  const stats=parseOCR([{lines:trusted}],catalog),carry=stats.fields.carrySize;if(!carry||new Set(stats.evidence.carrySize).size!==1)return null;
+  const eligible=catalog.species.filter(p=>skills.has(p.skillLabel)&&p.carrySize<=carry&&slots.every((ms,i)=>p[`ingredient${i===0?30:60}`].some(o=>o.ingredient.name===ms[0].ingredient&&ms.every(m=>!Number.isInteger(m.amount)||o.amount===m.amount))));
+  return eligible.length===1&&eligible[0].name===best.species?best.species:null;
 }

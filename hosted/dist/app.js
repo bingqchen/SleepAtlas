@@ -1,7 +1,8 @@
 import {setupOffline} from './offline.js';
 import {formatFrequency,subskillSlots,calculatedStats,updatedCarrySize} from './pokemon-stats.js';
-import {api,projectAnalysis} from './local-api.js';
-import {readScreenshots} from './ocr.js';
+import {api,projectAnalysis,discardPictures,savePictures} from './local-api.js';
+import {createScreenshotReader} from './ocr.js';
+import {newImportBatch,runImportBatch,batchSummary} from './import-batch.js';
 import {resolveIngredients} from './ingredient-matcher.js';
 import {collectionRows,specialtyCounts,specialtyLabels} from './collection.js';
 import {speciesChoices} from './evolution.js';
@@ -18,6 +19,7 @@ const fmt = (n, digits=1) => Number(n).toLocaleString(undefined,{maximumFraction
 let catalog, records=[], editing=null, imageIds=[], pictureURLs=[], ocrText='', demo=false, online=true, saving=false, uploading=false;
 let editorBaseline='',pendingEntry=false,closingEditor=false,ownsDraft=false;
 let editorStatAnchors=null;
+let importBatch=null,reviewEntryId=null,batchWrite=Promise.resolve();
 let detailId=null,detailOrder=[],detailRequest=0,detailLoading=false;
 let levelOverride=null,levelPreview,favoriteBerryConfig=null,editorFavoriteMultiplier,berryTeams={};
 // The collection lives in IndexedDB on this device; this cache also holds form drafts.
@@ -26,6 +28,11 @@ const species = name => catalog.species.find(p=>p.name===name);
 const cacheDB=new Promise((resolve,reject)=>{const r=indexedDB.open('sleep-atlas-mobile',1);r.onupgradeneeded=()=>r.result.createObjectStore('cache');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
 async function cacheGet(key){try{const db=await cacheDB;return await new Promise((res,rej)=>{const r=db.transaction('cache').objectStore('cache').get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}catch{return null}}
 async function cachePut(key,value){try{const db=await cacheDB;await new Promise((res,rej)=>{const t=db.transaction('cache','readwrite');t.objectStore('cache').put(value,key);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch{/* Private browser mode can disable the optional read-only cache. */}}
+function persistImportBatch(value=importBatch){
+  const snapshot=structuredClone(value);
+  const write=batchWrite.catch(()=>{}).then(async()=>{const db=await cacheDB;await new Promise((resolve,reject)=>{const t=db.transaction('cache','readwrite');t.objectStore('cache').put(snapshot,'import-batch');t.oncomplete=resolve;t.onabort=t.onerror=()=>reject(t.error||Error('Could not save the import queue. Check available device storage.'))})});
+  batchWrite=write;return write;
+}
 function toast(message){$('toast').textContent=message;$('toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').style.display='none',5000)}
 function connection(connected){online=connected}
 async function boot(){
@@ -42,6 +49,7 @@ async function boot(){
   berryTeams={};const savedTeams=await cacheGet('berry-teams');
   if(savedTeams&&typeof savedTeams==='object'&&!Array.isArray(savedTeams))for(const [id,ids] of Object.entries(savedTeams)){try{berryTeams[id]=validateBerryTeamIds(ids,id)}catch{/* Ignore malformed preferences without changing saved Pokémon. */}}
   renderCollection();renderMethod();
+  importBatch=await cacheGet('import-batch');renderBatchStatus();
   if(!catalog.ocrAvailable)$('upload-status').textContent='Screenshot reading is unavailable. You can enter details manually.';
   const draft=await cacheGet('draft');
   if(draft && !$('editor').open){$('upload-status').innerHTML='You have an unfinished review. <button class="text-button" id="resume-draft">Resume draft</button>';$('resume-draft').onclick=()=>openEditor(draft.build,{id:draft.id,imageIds:draft.imageIds||[],statAnchors:draft.statAnchors,resumed:true})}
@@ -104,12 +112,16 @@ function openEditor(build={},context={}){
   const selectedSpecies=choices.some(p=>p.name===build.species)?build.species:'';
   $('import-dialog').close();
   editing=context.id||null;imageIds=context.imageIds||[];ocrText=context.text||'';demo=!!context.demo;
+  reviewEntryId=context.batchEntryId||null;
   pictureURLs.forEach(URL.revokeObjectURL);pictureURLs=(context.files||[]).map(f=>URL.createObjectURL(f));
   const settings={...catalog.defaults,...build.settings};const p=species(selectedSpecies);
   editorFavoriteMultiplier=settings.favoriteBerryMultiplier;
   $('editor-title').textContent=editing?'Update your helper':demo?'Try an example build':'Review your helper';
   $('form-status').textContent='';$('save-button').textContent='Analyze & save';
   $('delete-pokemon').hidden=!editing||demo;
+  $('skip-import-photo').hidden=!reviewEntryId;
+  $('editor').querySelector('[data-close="editor"]').textContent=reviewEntryId?'Finish later':'Cancel';
+  if(reviewEntryId){$('editor-title').textContent=`Review photo ${importBatch.entries.findIndex(e=>e.id===reviewEntryId)+1} of ${importBatch.entries.length}`;$('save-button').textContent='Save & next'}
   $('editor-body').innerHTML=`${demo?'<div class="notice info">Example only. It becomes part of your collection only if you save it.</div>':''}${context.warnings?`<div class="notice">${context.warnings.map(escapeHTML).join('<br>')}</div>`:'<div class="notice info">Use your Pokémon’s details. Helping frequency and carry limit update automatically when its stats change.</div>'}<div class="preview-strip">${pictureURLs.map((u,i)=>`<img src="${u}" alt="Screenshot ${i+1}">`).join('')}</div><div class="form-grid"><label class="field full" for="f-species">Species<select id="f-species" required>${options(choices.map(p=>({value:p.name,label:p.displayName})),selectedSpecies,'Choose species…')}</select>${editing?'<small>Choose from this Pokémon’s evolution family.</small>':''}</label>${field('Nickname (optional)','f-nickname',build.nickname,'text','maxlength="80"')}${field('Pokémon level','f-level',build.level,'number','min="1" max="100" required')}<label class="field" for="f-nature">Nature<select id="f-nature" required>${options(catalog.natures.map(n=>({value:n.name,label:n.prettyName})),build.nature,'Choose nature…')}</select></label><label class="field" for="f-skillLevel">Displayed main skill level<select id="f-skillLevel" required></select><small id="skill-level-help"></small></label>${field('Carry limit','f-carrySize',build.carrySize,'number','min="1" max="200" required')}<div class="field" id="main-skill-field"></div></div><p class="small" id="carry-help">Carry limit updates for the species, evolution stage, and active Inventory Up subskills. Existing extra carry bonuses are retained. You can correct the value from the game.</p><h3 class="form-section">Helping frequency</h3><input type="hidden" id="f-frequency-source" value="${build.frequencySource==='calculated'?'calculated':'recorded'}"><p class="small" id="frequency-help"></p><div class="form-grid">${field('Minutes','f-frequency-minutes',build.displayedFrequencySeconds?Math.floor(build.displayedFrequencySeconds/60):'','number','min="0" max="1440" step="1" aria-describedby="frequency-help"')}${field('Seconds','f-frequency-seconds',build.displayedFrequencySeconds?build.displayedFrequencySeconds%60:'','number','min="0" max="59" step="1" aria-describedby="frequency-help"')}</div><h3 class="form-section">Ingredient slots</h3><p class="small">Confirm the icons in all three slots. Future slots are used for projections.</p><div class="form-grid" id="ingredient-fields"></div><h3 class="form-section">Subskills</h3>${context.detectedSubskills?.length?`<p class="small">Detected: ${context.detectedSubskills.map(escapeHTML).join(', ')}. Verify each unlock level.</p>`:''}<div class="subskill-grid">${unlocks.map((l,i)=>`<label class="field" for="sub-${l}">Unlocks at Lv. ${l}<select id="sub-${l}">${options(catalog.subskills.map(s=>s.name),build.subskills?.[i],'Unknown / no bonus modeled')}</select></label>`).join('')}</div><details><summary>Daily routine & analysis settings</summary><p class="small">These assumptions affect output. The 2.2× energy setting is an average scenario, not an energy simulation.</p><div class="form-grid"><div id="mew-skill-assumption" class="field full" ${p?.name==='MEW'?'':'hidden'}>${field('Assumed Mew base skill chance (%)','f-mewSkillChance',build.mewSkillChance??4,'number','min="0.01" max="100" step="0.01"')}<small>Mew’s skill and ingredient rates are unverified. Change this assumption if you have a measured rate for the selected skill.</small></div>${field('Average energy speed multiplier','s-energy',settings.energyMultiplier,'number','min="1" max="2.5" step="0.1" required')}${field('Sleep hours (no collection)','s-sleep',settings.sleepHours,'number','min="0" max="12" step="0.5" required')}${field('Collect every (awake hours)','s-collection',settings.collectionHours,'number','min="0.25" max="12" step="0.25" required')}${field('Area bonus (%)','s-area',settings.areaBonus,'number','min="0" max="100" step="1" required')}${field('Other teammates with Helping Bonus','s-team',settings.teamHelpingBonus,'number','min="0" max="4" step="1" required')}<label class="check-row"><input id="s-favorite" type="checkbox" ${settings.favoriteBerry?'checked':''}>Snorlax’s favorite berry</label></div></details><label class="field" for="f-notes">Notes<textarea id="f-notes" rows="2" maxlength="4000" placeholder="Anything you want to remember…">${escapeHTML(build.notes||'')}</textarea></label>${ocrText?`<details><summary>Recognized screenshot text</summary><pre>${escapeHTML(ocrText)}</pre></details>`:''}<p class="small">Saving updates a matching Pokémon, including level changes and subskill upgrades. The previous analysis stays in its history.</p>`;
   renderIngredientFields(build.ingredients);renderMainSkillField(build.mainSkill,build.skillLevel);
   $('f-species').onchange=()=>{const selected=[0,30,60].map(l=>$(`ing-${l}`).value),p=species($('f-species').value);renderMainSkillField();const matched=resolveIngredients(context.ingredientMatches||[],p);renderIngredientFields(editing?selected:matched.ingredients);if(matched.warnings.length)toast(matched.warnings.join(' '))};
@@ -193,11 +205,13 @@ function editorSnapshot(){return JSON.stringify([...$('editor-body').querySelect
 function hasUnsavedChanges(){return $('editor').open&&(pendingEntry||editorSnapshot()!==editorBaseline)}
 function saveDraft(){
   if(!$('editor').open||saving||closingEditor||!$('f-species'))return;
+  if(reviewEntryId){rememberBatchDraft();persistImportBatch().catch(error=>{$('form-status').textContent=`Draft could not be kept: ${error.message}`});return}
   if(hasUnsavedChanges()){ownsDraft=true;cachePut('draft',{id:editing,build:getBuild(),imageIds,statAnchors:editorStatAnchors})}
   else void clearEditorDraft();
 }
 async function clearEditorDraft(){
   clearTimeout(saveDraft.timer);
+  if(reviewEntryId)return;
   // Opening and canceling a clean editor must not erase another recovery draft.
   if(!ownsDraft)return;
   ownsDraft=false;await cachePut('draft',null);
@@ -211,6 +225,7 @@ async function finishEditorClose(){
 }
 function requestEditorClose(){
   if(saving||closingEditor)return;
+  if(reviewEntryId){void pauseBatchReview();return}
   if(hasUnsavedChanges()){if(!$('discard-changes').open)$('discard-changes').showModal()}
   else void finishEditorClose();
 }
@@ -245,22 +260,84 @@ $('delete-pokemon').onclick=deleteEditedPokemon;
 async function upload(files){
   if(uploading)return;
   if(!online){$('upload-status').textContent='Reload the app to restore access to device storage.';return}
+  if(importBatch){await resumeBatch();return}
   if(!files.length)return;
-  if(files.length>8){$('upload-status').textContent='Choose up to 8 images for one Pokémon.';return}
-  if(files.some(f=>f.size>12*1024*1024)){$('upload-status').textContent='Each image must be smaller than 12 MB.';return}
-  setUploadBusy(true);$('upload-status').textContent=`Reading ${files.length} screenshot${files.length>1?'s':''} on this device…`;
   try{
-    const result=await readScreenshots(files,message=>{$('upload-status').textContent=message});
-    openEditor(result.fields,{...result,files});$('upload-status').textContent='Screenshots read. Review the details before saving.';
-  }catch(error){$('upload-status').textContent=error.message;toast(error.message)}finally{setUploadBusy(false);$('screenshots').value=''}
+    importBatch=newImportBatch(files,$('upload-mode').value);await processBatch();
+  }catch(error){$('upload-status').textContent=error.message;toast(error.message);renderBatchStatus()}finally{$('screenshots').value=''}
 }
+function renderBatchStatus(){
+  $('import-batch-status').hidden=!importBatch;
+  if(!importBatch)return;
+  const s=batchSummary(importBatch);$('import-batch-description').textContent=`Photo import: ${s.saved} saved · ${s.review} to review${s.pending?` · ${s.pending} waiting`:''}${s.skipped?` · ${s.skipped} skipped`:''}.`;
+  $('resume-batch').disabled=uploading||saving;
+}
+function rememberBatchDraft(){const entry=importBatch?.entries.find(e=>e.id===reviewEntryId);if(entry)entry.draft={build:getBuild(),statAnchors:editorStatAnchors}}
+function closeBatchEditor(){clearTimeout(saveDraft.timer);$('editor').close();reviewEntryId=null;pendingEntry=false;editorBaseline='';pictureURLs.forEach(URL.revokeObjectURL);pictureURLs=[]}
+async function pauseBatchReview(){
+  if(saving||closingEditor)return;closingEditor=true;clearTimeout(saveDraft.timer);
+  try{rememberBatchDraft();await persistImportBatch();closeBatchEditor();renderBatchStatus();toast('Unfinished photos are kept on this device. Select Resume import to continue.')}
+  catch(error){$('form-status').textContent=error.message}finally{closingEditor=false}
+}
+async function processBatch(){
+  if(uploading)return;
+  setUploadBusy(true);if(!$('import-dialog').open)$('import-dialog').showModal();
+  const reader=createScreenshotReader();
+  try{
+    // Persist the originals before reading or saving any Pokémon.
+    await persistImportBatch();
+    await runImportBatch(importBatch,{read:(files,report,entry)=>reader.read(files,report,entry.pictureIds),save:(build,imageIds,importToken)=>api('/api/pokemon',{method:'POST',body:JSON.stringify({build,imageIds,importToken})}),persist:persistImportBatch,progress:message=>{$('upload-status').textContent=message;renderBatchStatus()}});
+  }catch(error){$('upload-status').textContent=error.message;toast(error.message);return}
+  finally{await reader.close().catch(()=>{});setUploadBusy(false);renderBatchStatus()}
+  await continueBatch();
+}
+async function resumeBatch(){
+  if(uploading||saving||!importBatch)return;
+  try{if(batchSummary(importBatch).pending)await processBatch();else await continueBatch()}catch(error){toast(error.message)}
+}
+async function continueBatch(){
+  await refresh();renderBatchStatus();
+  const entry=importBatch.entries.find(e=>e.status==='review');
+  if(entry){
+    const result=entry.result||{};
+    openEditor(entry.draft?.build||result.fields||{},{...result,files:entry.files,imageIds:result.imageIds||[],statAnchors:entry.draft?.statAnchors,batchEntryId:entry.id,warnings:[...(result.review?.reasons||[]),'Confirm the remaining details, then save. You can skip this photo or finish later.']});
+    return;
+  }
+  if(batchSummary(importBatch).pending)return;
+  const s=batchSummary(importBatch);await persistImportBatch(null);importBatch=null;
+  $('import-dialog').close();$('upload-status').textContent='';renderBatchStatus();
+  $('sort').value='recent';$('search').value='';$('type-filter').value='';renderCollection();
+  toast(`Import complete: ${s.saved-s.updated} added, ${s.updated} updated${s.skipped?`, ${s.skipped} skipped`:''}.`);
+}
+$('resume-batch').onclick=resumeBatch;
+$('skip-import-photo').onclick=async()=>{
+  if(saving||closingEditor||!reviewEntryId)return;closingEditor=true;
+  const entry=importBatch.entries.find(e=>e.id===reviewEntryId),previous=structuredClone(entry);
+  try{entry.status='skipped';entry.files=[];delete entry.result;delete entry.draft;await persistImportBatch();await discardPictures(previous.pictureIds||[]);closeBatchEditor();await continueBatch()}
+  catch(error){Object.assign(entry,previous);$('form-status').textContent=error.message;toast(error.message)}finally{closingEditor=false;renderBatchStatus()}
+};
 $('pokemon-form').onsubmit=async event=>{
   event.preventDefault();if(saving||closingEditor)return;if(!online){$('form-status').textContent='Device storage is unavailable. Your draft is kept where possible; reload and try again.';saveDraft();return}
   clearTimeout(saveDraft.timer);const build=getBuild(),controls=[...$('pokemon-form').elements].map(field=>[field,field.disabled]);saving=true;
   for(const [field] of controls)field.disabled=true;
   $('form-status').textContent='Calculating daily output and ratings…';
-  try{const row=await api('/api/pokemon',{method:'POST',body:JSON.stringify({build,id:editing,imageIds})});pendingEntry=false;editorBaseline=editorSnapshot();await clearEditorDraft();$('editor').close();await refresh();await showDetails(row.id);toast(row.deduplicated?`Updated matching Pokémon${row.deduplicated>1?` and merged ${row.deduplicated} entries`:''}. Previous analyses kept in history.`:'Analysis saved to your local collection.')}
+  let advance=false;
+  try{
+    if(reviewEntryId&&!imageIds.length){
+      const entry=importBatch.entries.find(e=>e.id===reviewEntryId);
+      imageIds=await savePictures(entry.files.map((file,i)=>({id:entry.pictureIds[i],pendingReview:true,filename:entry.names[i],mime:file.type,blob:file,text:[],createdAt:importBatch.createdAt})));
+      entry.result.imageIds=imageIds;await persistImportBatch();
+    }
+    const row=await api('/api/pokemon',{method:'POST',body:JSON.stringify({build,id:editing,imageIds,...(reviewEntryId?{importToken:reviewEntryId}:{})})});
+    if(reviewEntryId){
+      const entry=importBatch.entries.find(e=>e.id===reviewEntryId),previous=structuredClone(entry);
+      entry.status='saved';entry.receipt=row;entry.files=[];delete entry.result;delete entry.draft;
+      try{await persistImportBatch()}catch(error){Object.assign(entry,previous);throw error}
+      closeBatchEditor();advance=true;
+    }else{pendingEntry=false;editorBaseline=editorSnapshot();await clearEditorDraft();$('editor').close();await refresh();await showDetails(row.id);toast(row.deduplicated?`Updated matching Pokémon${row.deduplicated>1?` and merged ${row.deduplicated} entries`:''}. Previous analyses kept in history.`:'Analysis saved to your local collection.')}
+  }
   catch(error){$('form-status').textContent=error.message;saving=false;saveDraft()}finally{saving=false;for(const [field,disabled] of controls)field.disabled=disabled}
+  if(advance)try{await continueBatch()}catch(error){toast(error.message);renderBatchStatus()}
 };
 function natureBadges(name){
   const nature=catalog.natures.find(n=>n.name===name);
@@ -385,7 +462,7 @@ $('discard-changes').oncancel=event=>{if(closingEditor)event.preventDefault()};
 window.addEventListener('beforeunload',event=>{if(!saving&&!closingEditor&&hasUnsavedChanges()){saveDraft();event.preventDefault();event.returnValue=''}});
 function setUploadBusy(busy){
   uploading=busy;
-  ['screenshots','choose-screenshots','manual-button','resume-draft'].forEach(id=>{if($(id))$(id).disabled=busy});
+  ['screenshots','choose-screenshots','manual-button','resume-draft','upload-mode','resume-batch','update-button'].forEach(id=>{if($(id))$(id).disabled=busy});
   $('import-dialog').querySelector('[data-close]').disabled=busy;
 }
 function closeActions(restoreFocus=false){
@@ -466,7 +543,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('actions
 // Safari can blur a button to no target before its tap becomes a click.
 // Close only when focus actually arrives outside, never on that transient blur.
 document.addEventListener('focusin',event=>{if(event.target!==document.body&&!$('collection-actions').contains(event.target))closeActions()});
-$('add-pokemon').onclick=()=>{closeActions(true);$('import-dialog').showModal()};
+$('add-pokemon').onclick=()=>{closeActions(true);if(importBatch)void resumeBatch();else $('import-dialog').showModal()};
 $('restore-button').onclick=()=>{closeActions(true);$('restore-file').click()};
 $('choose-screenshots').onclick=()=>$('screenshots').click();
 $('import-dialog').oncancel=event=>{if(uploading)event.preventDefault()};

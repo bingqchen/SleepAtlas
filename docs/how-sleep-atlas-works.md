@@ -10,7 +10,9 @@ This guide describes the hosted app as of **Reader v38, October 8, 2026**, using
 flowchart TD
     A[Pokémon detail screenshots] --> B[Read text and match pictures on device]
     C[Bundled species catalog and picture references] --> B
-    B --> D[Review and correct the Pokémon build]
+    B --> Q{Complete and confident?}
+    Q -->|No| D[Review and correct the Pokémon build]
+    Q -->|Yes| E
     D --> E[Calculate daily output and ratings]
     C --> E
     E --> F[Save build and analysis in local browser database]
@@ -18,7 +20,9 @@ flowchart TD
     F --> H[Export builds as a JSON backup]
 ```
 
-Open the top **⋮** menu and choose **Add Pokémon**. Import screenshots for one Pokémon at a time, review the extracted fields, and choose **Analyze & save**. You can also enter a Pokémon manually. Saving validates the fields; there is no separate confirmation checkbox.
+Open the top **⋮** menu and choose **Add Pokémon**. The default **One Pokémon per photo** mode accepts up to 20 screenshots and reads each independently. Complete, confidently recognized builds save automatically. Photos with missing or conflicting details appear in a review queue: correct the fields, then choose **Save & next**, **Skip photo**, or **Finish later**. The unfinished queue and edits are kept on this device and can resume after a reload. Once the batch finishes, the collection opens sorted by **Recently added**, with name and type filters cleared. Existing matching Pokémon are updated using the usual deduplication rules.
+
+If several screenshots describe the same Pokémon, choose **Several photos of one Pokémon** before selecting up to eight images. They are combined into one build. You can also enter a Pokémon manually. Saving validates the fields; there is no separate confirmation checkbox. Automatic saves require a verified portrait, clear level, nature, main skill level, carry limit and frequency, all five subskills in their slots, and all three ingredient choices. A species-like nickname alone cannot trigger automatic saving. Empty optional nicknames and notes do not block it.
 
 The saved build contains species, nickname, level, nature, five ordered subskills, three ingredient choices, main skill level, carry limit, helping frequency when available, notes, and analysis settings. Screenshots are evidence for those fields; daily production and ratings are calculated separately.
 
@@ -61,7 +65,9 @@ The hosted app uses **Tesseract.js**, an English text reader running in the brow
 4. **Identify ingredients.** The second and third ingredient icons are compared with normal and faded references. Matches must be sufficiently clear and valid for that species, slot, and quantity when readable. The first ingredient uses the species’ fixed catalog option.
 5. **Keep uncertain values editable.** Missing, conflicting, or ambiguous results are left for review. Non-English nickname text is not automatically filled, even when the species is identified from its portrait.
 
-If recognition fails, first check the app version and species list. For a supported species, use a clearer detail screenshot with the header, frequency, ingredient icons, and subskill grid visible. Selecting the species manually can resolve ingredient matches that require species context. Several screenshots may describe one Pokémon, but screenshots of different Pokémon should be imported separately.
+If recognition fails, first check the app version and species list. For a supported species, use a clearer detail screenshot with the header, frequency, ingredient icons, and subskill grid visible. Selecting the species manually can resolve ingredient matches that require species context. Keep the default grouping for photos of different Pokémon; use the second grouping option only for several screens of the same Pokémon.
+
+An unreadable level number can still locate the portrait when its “Lv.” prefix is visible. For a close but ambiguous portrait, the reader can confirm the global best match when a clearly read main skill, both later ingredient icons, and carry capacity leave exactly one catalog species. It never substitutes a lower-ranked portrait candidate. The reported Mareep photo uses this check; its unreadable level still requires manual entry.
 
 ## How daily estimates are calculated
 
@@ -205,7 +211,7 @@ Use Export and Restore to move a collection between devices. Export regularly: b
 
 While connected, open **⋮ → Download for offline use**, then choose **Download for offline use** in the dialog. The full download is about 16 MB. Keep the app open until it shows **Ready for offline use**. The download includes the app, catalog, portrait and ingredient references, English recognition data, the OCR worker, and both supported LSTM engine variants.
 
-The dialog checks that all 32 required files are present in the current caches. Setup waits for the offline worker to activate before downloading. Failed setup can be retried without clearing the collection. It reports progress, keeps successfully downloaded files after an interruption, and retries missing files. A failed download, a full device, or a sign-in response cannot produce a successful readiness result. Reopen this menu to check the files again, especially before travelling.
+The dialog checks that all required files are present in the current caches. Setup waits for the offline worker to activate before downloading. Failed setup can be retried without clearing the collection. It reports progress, keeps successfully downloaded files after an interruption, and retries missing files. A failed download, a full device, or a sign-in response cannot produce a successful readiness result. Reopen this menu to check the files again, especially before travelling.
 
 On an iPhone or iPad, use **Add to Home Screen**, launch Sleep Atlas from its icon, and download inside that app. A download in a Safari tab may not be available in the Home Screen app’s separate storage. Once ready, the same app can open its collection, calculate, save, and read screenshots offline. Updates and sign-in may require internet. The browser can clear downloaded files; this download does not replace an exported collection backup.
 

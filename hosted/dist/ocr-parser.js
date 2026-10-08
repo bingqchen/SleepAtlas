@@ -60,11 +60,13 @@ export function subskillGrid(image,catalog){
 }
 export function parseOCR(images,catalog){
   const lines=images.flatMap(i=>i.lines),text=lines.map(l=>l.text).join('\n'),fields={},warnings=[],detected=new Set();
+  const evidence={level:[],nature:[],skillLevel:[],carrySize:[],subskills:[[],[],[],[],[]]};
   // A header may be one line ("Lv.31 Mewtwo"). Use whole-name boundaries so
   // Mew never matches Mewtwo, and prefer the longest matching form name.
   const p=[...catalog.species].sort((a,b)=>b.displayName.length-a.displayName.length).find(p=>lines.some(l=>l.y<.45&&has(l.text,p.displayName)));
   if(p)fields.species=p.name;
   const natures=catalog.natures.filter(n=>lines.some(l=>has(l.text,n.name)));
+  evidence.nature=natures.map(n=>n.name);
   if(natures.length===1)fields.nature=natures[0].name;
   const subskills=['','','','',''];let gridInferred=false;
   for(const image of images){
@@ -75,6 +77,9 @@ export function parseOCR(images,catalog){
     const headerLevel=headers.map(levelOf).find(l=>l>=1&&l<=100);
     const nearby=ls.filter(l=>l.x<.6&&l.y<.4&&headers.some(h=>sameRow(h,l))).map(levelOf).find(l=>l>=1&&l<=100);
     const generic=ls.filter(l=>l.x<.5&&l.y<.3&&!/^\W*Lv\.?\s*(10|25|50|70|80)\W*$/i.test(l.text)).map(headerLevelOf).find(l=>l>=1&&l<=100);
+    const validLevels=values=>values.filter(l=>l>=1&&l<=100);
+    const headerCandidates=validLevels(headers.map(levelOf)),nearbyCandidates=validLevels(ls.filter(l=>l.x<.6&&l.y<.4&&headers.some(h=>sameRow(h,l))).map(levelOf));
+    evidence.level.push(...(headerCandidates.length?headerCandidates:nearbyCandidates.length?nearbyCandidates:validLevels(ls.filter(l=>l.x<.5&&l.y<.3&&!/^\W*Lv\.?\s*(10|25|50|70|80)\W*$/i.test(l.text)).map(headerLevelOf))));
     if(fields.level===undefined&&(headerLevel||nearby||generic))fields.level=headerLevel||nearby||generic;
     {
       const labels=p?[p.skillLabel,p.skill.name]:[...new Set(catalog.species.map(s=>s.skillLabel))];
@@ -82,9 +87,12 @@ export function parseOCR(images,catalog){
       for(const anchor of anchors){
         const inline=levelOf(anchor);const nearby=ls.filter(l=>sameRow(l,anchor)||Math.abs(cy(l)-cy(anchor))<.035).map(l=>({level:levelOf(l),distance:Math.abs(cy(l)-cy(anchor))})).filter(x=>x.level>=1&&x.level<=(p?.skill.RP?.length||7)).sort((a,b)=>a.distance-b.distance);
         const level=inline||nearby[0]?.level;if(level>=1&&level<=(p?.skill.RP?.length||7))fields.skillLevel=level;
+        evidence.skillLevel.push(...(inline?[inline]:nearby.filter(x=>Math.abs(x.distance-nearby[0]?.distance)<.00001).map(x=>x.level)).filter(l=>l>=1&&l<=(p?.skill.RP?.length||7)));
       }
     }
     const carryInline=ls.map(l=>l.text.match(/carry\s*(?:limit|size)\W*(\d{1,3})\b/i)).find(Boolean);
+    const carryLabels=ls.filter(l=>/carry\s*(?:limit|size)/i.test(l.text)),frequencyAnchor=ls.find(isFrequencyLine),skillsEnd=ls.find(l=>/main\s+skill.*sub\s*skills/i.test(l.text));
+    evidence.carrySize.push(...ls.map(l=>Number(l.text.match(/carry\s*(?:limit|size)\W*(\d{1,3})\b/i)?.[1])).filter(n=>n>=1&&n<=200),...ls.filter(l=>/^\s*\d{1,3}\s*$/.test(l.text)&&(carryLabels.some(a=>l.x>a.x&&sameRow(a,l))||(frequencyAnchor&&skillsEnd&&l.x>.38&&l.y>frequencyAnchor.y+.02&&l.y<skillsEnd.y))).map(l=>Number(l.text.trim())).filter(n=>n>=1&&n<=200));
     if(carryInline)fields.carrySize=Number(carryInline[1]);
     else{
       const labels=ls.filter(l=>/carry\s*(?:limit|size)/i.test(l.text));
@@ -100,11 +108,12 @@ export function parseOCR(images,catalog){
     for(const line of ls)for(const skill of catalog.subskills)if(has(line.text,skill.name))detected.add(skill.name);
     for(const hit of hits){
       const labels=ls.map(line=>({line,level:levelOf(line)})).filter(({line,level})=>[10,25,50,70,80,75,100].includes(level)&&hit.line.y-line.y>=-.008&&hit.line.y-line.y<.065&&Math.abs(hit.line.x-line.x)<.22&&((hit.line.x>=.5)===(line.x>=.5))).sort((a,b)=>Math.abs(hit.line.y-a.line.y)-Math.abs(hit.line.y-b.line.y));
-      if(labels.length){const level=labels[0].level;subskills[UNLOCKS.indexOf(level===75?70:level===100?80:level)]=hit.name}
+      if(labels.length){const level=labels[0].level,slot=UNLOCKS.indexOf(level===75?70:level===100?80:level);subskills[slot]=hit.name;evidence.subskills[slot].push(hit.name)}
     }
     // A complete geometric grid with one unread cell still locates the other
     // four. Never shift known skills into the missing cell.
     const grid=subskillGrid(image,catalog);
+    if(grid){for(const c of grid)if(c.hit)evidence.subskills[c.slot].push(c.hit.name)}
     if(grid&&grid.every(c=>!c.hit||!subskills[c.slot]||subskills[c.slot]===c.hit.name)){for(const c of grid)if(c.hit)subskills[c.slot]=c.hit.name;gridInferred=true}
   }
   fields.subskills=subskills;
@@ -113,5 +122,5 @@ export function parseOCR(images,catalog){
   if(frequency.conflict)warnings.push('The screenshots show different helping frequencies. Enter the current frequency manually.');
   if(gridInferred)warnings.push('Subskill slots were read from their grid positions. Confirm the order before saving.');
   warnings.push('Check all extracted details before saving.','Confirm ingredient matches; obscured or uncertain slots need manual selection.','Confirm the displayed main skill level and carry limit.');
-  return {fields,detectedSubskills:[...detected],text,confidence:lines.length?lines.reduce((s,l)=>s+l.confidence,0)/lines.length:0,warnings};
+  return {fields,evidence,detectedSubskills:[...detected],text,confidence:lines.length?lines.reduce((s,l)=>s+l.confidence,0)/lines.length:0,warnings};
 }

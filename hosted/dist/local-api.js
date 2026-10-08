@@ -36,8 +36,12 @@ function decodePicture(pic){
 export async function savePictures(pictures){
   const db=await database(),t=db.transaction('screenshots','readwrite'),done=complete(t),store=t.objectStore('screenshots');
   // Discard abandoned imports older than a day; saved screenshots stay attached.
-  const cursor=store.openCursor();cursor.onsuccess=()=>{const c=cursor.result;if(c){if(!c.value.owner&&Date.now()-Date.parse(c.value.createdAt)>86400000)c.delete();c.continue()}};
-  for(const pic of pictures)store.add(pic);await done;return pictures.map(p=>p.id);
+  const cursor=store.openCursor();cursor.onsuccess=()=>{const c=cursor.result;if(c){if(!c.value.owner&&!c.value.pendingReview&&Date.now()-Date.parse(c.value.createdAt)>86400000)c.delete();c.continue()}};
+  for(const pic of pictures){const r=store.get(pic.id);r.onsuccess=()=>{if(!r.result)store.add(pic)}}await done;return pictures.map(p=>p.id);
+}
+export async function discardPictures(ids){
+  const db=await database(),t=db.transaction('screenshots','readwrite'),done=complete(t),store=t.objectStore('screenshots');
+  for(const id of ids){const r=store.get(id);r.onsuccess=()=>{if(r.result&&!r.result.owner)store.delete(id)}}await done;
 }
 export async function api(path,options={}){
   const {catalog,engine}=await initialize(),method=options.method||'GET',body=options.body?JSON.parse(options.body):{};
@@ -46,6 +50,7 @@ export async function api(path,options={}){
   if(path==='/api/analyze'&&method==='POST'){await new Promise(r=>setTimeout(r,0));return engine.analyze(body.build)}
   if(path==='/api/pokemon'&&method==='POST'){
     if(body.id&&!validId(body.id))throw Error('Invalid Pokémon ID.');
+    if(body.importToken&&!validId(body.importToken))throw Error('Invalid import token.');
     const ids=body.imageIds||[];if(!Array.isArray(ids)||ids.length>8||ids.some(id=>!validId(id))||new Set(ids).size!==ids.length)throw Error('Invalid screenshot references.');
     await new Promise(r=>setTimeout(r,0));const analysis=engine.analyze(body.build),db=await database();
     // Match and write inside one transaction so simultaneous imports in two tabs
@@ -55,6 +60,8 @@ export async function api(path,options={}){
     const abort=message=>{failure=message;t.abort()};
     const previous=store.getAll();previous.onsuccess=()=>{
       const rows=previous.result,explicit=body.id?rows.find(row=>row.id===body.id):null;
+      const receipt=body.importToken&&rows.flatMap(row=>(row.importReceipts||[]).map(r=>({...r,id:row.id}))).find(r=>r.token===body.importToken);
+      if(receipt){result={id:receipt.id,deduplicated:receipt.deduplicated,alreadySaved:true};return}
       if(body.id&&!explicit){abort('This Pokémon no longer exists.');return}
       if(explicit&&!speciesChoices(catalog,explicit.analysis.build.species).some(p=>p.name===analysis.build.species)){abort('Choose a species in this Pokémon’s evolution family. Add an unrelated Pokémon as a new entry.');return}
       const matches=body.id?[explicit]:rows.filter(row=>matchesProgression(row.analysis.build,analysis.build,catalog));
@@ -72,8 +79,10 @@ export async function api(path,options={}){
         const metadata=!ids.length&&!body.id&&old?old.screenshots||[]:pictures.map(p=>({id:p.id,filename:p.filename,text:p.text}));
         const kept=new Set(metadata.map(p=>p.id));
         for(const row of matches){for(const pic of row.screenshots||[])if(!kept.has(pic.id))pictureStore.delete(pic.id);if(row.id!==id)store.delete(row.id)}
-        store.put({id,createdAt:old?.createdAt||now,updatedAt:now,analysis,history,historyCount:history.length,screenshots:metadata});
-        for(const p of pictures)pictureStore.put({...p,owner:id});
+        const importReceipts=matches.flatMap(row=>row.importReceipts||[]);
+        if(body.importToken)importReceipts.push({token:body.importToken,deduplicated:body.id?0:matches.length});
+        store.put({id,createdAt:old?.createdAt||now,updatedAt:now,analysis,history,historyCount:history.length,screenshots:metadata,importReceipts});
+        for(const p of pictures)pictureStore.put({...p,owner:id,pendingReview:false});
         result={id,deduplicated:body.id?0:matches.length};
       };
       if(!pending)commit();
@@ -145,7 +154,7 @@ export async function api(path,options={}){
         // replace only the matched helper's pictures in this same transaction.
         const screenshots=!samePictures?incoming.pics.map(p=>({id:p.id,filename:p.filename,text:p.text,fingerprint:p.fingerprint})):old?.screenshots||[];
         if(!samePictures){for(const pic of old?.screenshots||[])pictures.delete(pic.id);for(const pic of incoming.pics)pictures.add({...pic,owner:id})}
-        const row={id,createdAt:old?.createdAt||now,updatedAt:now,analysis:incoming.analysis,history,historyCount:history.length,screenshots};
+        const row={id,createdAt:old?.createdAt||now,updatedAt:now,analysis:incoming.analysis,history,historyCount:history.length,screenshots,importReceipts:old?.importReceipts||[]};
         store.put(row);result[old?'updated':'added']++;
       }
     }catch(error){failure=error;t.abort()}};
