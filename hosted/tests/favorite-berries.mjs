@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {Engine,MODEL_VERSION} from '../dist/engine.js';
 import {createLevelPreview} from '../dist/level-preview.js';
-import {berryOptions,validateFavorites,favoriteSettings,describeFavorites} from '../dist/favorite-berries.js';
+import {FAVORITE_ISLANDS,islandFavorites,berryOptions,validateFavorites,favoriteSettings,describeFavorites} from '../dist/favorite-berries.js';
 import {collectionRows} from '../dist/collection.js';
 
 const catalog=JSON.parse(fs.readFileSync(new URL('../dist/catalog.json',import.meta.url))),engine=new Engine(catalog),preview=createLevelPreview(catalog);
@@ -15,6 +15,21 @@ assert.deepEqual(validateFavorites(favorites,catalog),favorites);assert.equal(va
 for(const bad of [{berries:['MAGO','MAGO'],multiplier:2},{berries:['MAGO','GREPA','DURIN','ORAN'],multiplier:2},{berries:['UNKNOWN'],multiplier:2},{berries:[],multiplier:4},{berries:[],multiplier:'2.4'}])assert.throws(()=>validateFavorites(bad,catalog));
 assert.match(describeFavorites(favorites,catalog),/Durin, Grepa, Mago.*2.4/);
 assert.match(describeFavorites(ordinary,catalog),/No favorite berries/);
+const expectedIslands={cyan:['ORAN','PECHA','PAMTRE'],taupe:['LEPPA','FIGY','SITRUS'],snowdrop:['RAWST','PERSIM','WIKI'],lapis:['DURIN','MAGO','CHERI'],'old-gold':['GREPA','BLUK','BELUE'],amber:['YACHE','LUM','CHESTO']};
+for(const [island,berries] of Object.entries(expectedIslands)){
+  const config=islandFavorites(island);assert.deepEqual(config,{berries,multiplier:2,island});assert.deepEqual(validateFavorites(config,catalog),config);
+  for(const p of catalog.species){const settings=favoriteSettings({species:p.name,settings:catalog.defaults},catalog,config);assert.equal(settings.favoriteBerry,berries.includes(p.berry.name));assert.equal(settings.favoriteBerryMultiplier,2)}
+  assert.throws(()=>validateFavorites({...config,multiplier:2.4},catalog));assert.throws(()=>validateFavorites({...config,berries:[]},catalog));
+}
+for(const island of ['greengrass','greengrass-expert','cyan-expert']){
+  assert.deepEqual(islandFavorites(island),{berries:[],multiplier:2,island});
+  assert.deepEqual(validateFavorites({...favorites,island},catalog),{...favorites,island});
+}
+assert.equal(FAVORITE_ISLANDS.length,10);
+assert.throws(()=>islandFavorites('unknown'));assert.throws(()=>validateFavorites({...favorites,island:'unknown'},catalog));
+const cloned=islandFavorites('cyan');cloned.berries.pop();assert.equal(islandFavorites('cyan').berries.length,3,'Drafts cannot mutate shared presets');
+assert.match(describeFavorites(islandFavorites('cyan'),catalog),/^Cyan Beach.*Oran, Pecha, Pamtre.*2×/);
+assert.match(describeFavorites(islandFavorites('greengrass'),catalog),/^Greengrass Isle.*ordinary strength/);
 
 for(const name of ['SCEPTILE','RAICHU','GARDEVOIR','CHARIZARD']){
   const saved=make(name),snapshot=structuredClone(saved),match=favorites.berries.includes(engine.species.get(name).berry.name);
@@ -64,7 +79,14 @@ assert.deepEqual(node('favorite-berries-form').elements.map(c=>c.disabled),[fals
 const afterReload=createLevelPreview(catalog)(before.analysis,null,{full:true,favoriteBerries:reloaded});
 assert.equal(afterReload.modelVersion,MODEL_VERSION);close(afterReload.current.berryStrength,original.current.berryStrength*1.2);
 assert.deepEqual(await api('/api/pokemon/'+id),before);assert.deepEqual((await api('/api/backup')).pokemon,backup.pokemon);
+for(const configuration of [islandFavorites('cyan'),{...favorites,island:'greengrass'},islandFavorites('greengrass')]){
+  ctx.configuration=configuration;await vm.runInContext('applyFavoriteBerries(configuration)',ctx);
+  assert.deepEqual(validateFavorites(await read(),catalog),configuration,'Island and manual settings survive storage/reload');
+  const view=createLevelPreview(catalog)(before.analysis,null,{full:true,favoriteBerries:await read()});
+  close(view.current.berryStrength,original.current.berryStrength*(configuration.berries.includes('DURIN')?configuration.multiplier/2:0.5));
+  assert.deepEqual(await api('/api/pokemon/'+id),before);assert.deepEqual((await api('/api/backup')).pokemon,backup.pokemon);
+}
 await vm.runInContext('applyFavoriteBerries(null)',ctx);assert.equal(await read(),null);
 ctx.configuration={berries:['MAGO','MAGO'],multiplier:2};await vm.runInContext('applyFavoriteBerries(configuration)',ctx);assert.equal(await read(),null);assert.match(node('favorite-berries-status').textContent,/different berry/);
 cacheDB.close();(await database()).close();
-console.log('Passed: 18 berry types, max-three validation, 2×/2.4× matching and legacy behavior, no double bonuses, counts unchanged, skill berries, area bonus, ratings/forecasts/level composition, preference persistence/reset and untouched Pokémon backups/history.');
+console.log('Passed: fixed island presets, Greengrass/Expert defaults, legacy and island preference persistence, 18 berry types, max-three validation, 2×/2.4× matching and legacy behavior, no double bonuses, counts unchanged, skill berries, area bonus, ratings/forecasts/level composition, preference persistence/reset and untouched Pokémon backups/history.');

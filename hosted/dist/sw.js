@@ -1,4 +1,4 @@
-const VERSION='v32',CACHE=`sleep-atlas-hosted-${VERSION}`;
+const VERSION='v33',CACHE=`sleep-atlas-hosted-${VERSION}`;
 // Bump this independent cache whenever the pinned OCR files change.
 const OCR_CACHE='sleep-atlas-ocr-6.0.1-core-6.0.0-eng-1.0.0';
 const SHELL=['/','/style.css','/app.js','/offline.js','/collection.js','/detail-navigation.js','/level-preview.js','/favorite-berries.js','/evolution.js','/pokemon-stats.js','/local-api.js','/build-identity.js','/engine.js','/main-skills.js','/ocr.js','/ocr-parser.js','/sprite-matcher.js','/sprite-features.json','/ingredient-matcher.js','/ingredient-features.json','/install.js','/catalog.json','/icon.svg','/icon-180.png','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/tesseract.min.js'];

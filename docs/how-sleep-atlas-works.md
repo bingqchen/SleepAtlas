@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v32, October 7, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v33, October 7, 2026**, using calculation model `atlas-1.4-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -126,9 +126,11 @@ Tap a row to see its details, including the nature name with up/down effect badg
 | Control | Effect | Persistence |
 | --- | --- | --- |
 | Temporary level | Recalculates collection and details at 25, 30, 50, 60, 70, or 80, including relevant unlocks, carry, and frequency | Clears on reload; does not change saved builds |
-| Favorite berries in the overflow menu | Selects up to three berry types with a 2× or 2.4× strength multiplier | Remembered on this device; not included in Pokémon backups |
+| Favorite berries in the overflow menu | Selects an island preset or up to three manual berry types with a 2× or 2.4× strength multiplier | Remembered on this device; not included in Pokémon backups |
 | Use saved settings for favorites | Removes the collection override and uses each Pokémon’s individual setting | Remembers removal of the override |
 | Future levels in details | Projects levels 30, 60, 70, and 80 above the current displayed level | Derived estimates; main skill level stays fixed |
+
+The Favorite berries dialog includes an island selector. Cyan Beach, Taupe Hollow, Snowdrop Tundra, Lapis Lakeside, Old Gold Power Plant, and Amber Canyon fill their fixed three berries and 2× multiplier. Selecting Greengrass Isle clears all three berries, resets the multiplier to 2×, and enables manual choices for the week. Expert areas also require manual weekly choices: their 2.4× berry effect is not guaranteed. Custom / event unlocks the current choices for changes. Apply remembers the island and preferences on this device; Cancel leaves the applied settings alone. Other Expert bonuses are not simulated.
 
 An applied empty favorite selection gives every berry ordinary strength. Temporary level and favorite berry overrides affect collection totals and sorting; editing or exporting still uses the actual saved builds. The Future levels table does not change the collection sort. Levels above 70 are labeled hypothetical projections, not a claim about the current game cap.
 

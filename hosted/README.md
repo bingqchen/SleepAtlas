@@ -150,3 +150,10 @@ Count-based sorts have been removed. Fastest speed sorts the visible build’s `
 ## Compatible backup replacement (Reader v32)
 
 Restore updates compatible existing IDs or unique same-species matches across IDs. Nature, ingredient slots, Mew skill choice, and ordered subskill families identify compatibility; imported mutable stats win. Same-ID evolution follows the editor’s evolution family. Matching is planned against one transaction snapshot, with exact IDs taking priority and competing/ambiguous updates skipped. Changes preserve local identity/history and image-free imports preserve screenshots. Unchanged builds and repeated legacy images are idempotent. Restore reports added, updated, unchanged, and skipped counts.
+
+
+## Island favorite presets (Reader v33)
+
+Favorite berries includes six fixed standard-island presets at 2×, plus manual Greengrass/Expert areas and Custom / event. Greengrass and Expert selections reset berries to none and multiplier to 2×; Custom preserves the draft. Optional `island` metadata stays with the local preference, preserving older preference objects without migration. Apply is transactional; Cancel never changes the applied override. Fixed presets validate their berry sets and multiplier. Expert weekly berry effects can be entered manually at 2.4×; other Expert bonuses remain outside the model.
+
+Preset references: [Neroli’s pinned island data](https://github.com/nerolis-lab/nerolis-lab/tree/74e5068c1fa76518803caa8705798389da7f635d/common/src/types/island/islands), [research areas](https://www.serebii.net/pokemonsleep/researchareas.shtml), [official Amber Canyon announcement](https://www.pokemonsleep.net/en/news/333235333331303632383131303030383333/), and [official Expert Mode rules](https://www.pokemonsleep.net/en/news/323932383138363132393037393333363937/).
