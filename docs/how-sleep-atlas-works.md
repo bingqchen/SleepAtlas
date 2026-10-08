@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v35, October 8, 2026**, using calculation model `atlas-1.6-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v36, October 8, 2026**, using calculation model `atlas-1.7-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -106,7 +106,7 @@ Mew’s selected main skill is saved in its build. Supported selected effects us
 
 Ordinary **Berry Burst**, including Mew’s selected effect, assumes four teammates with the skill user’s berry type, level, and favorite bonus by default. At skill level 6 it produces **30 own + 20 teammate berries per activation**. This estimates a full team; it does not claim to know your actual teammates.
 
-Open the Pokémon’s details and choose **Choose teammates → Selected Pokémon** to select up to four saved teammates. Choices are ordered by current estimated strength, highest first, including temporary levels, island settings, and each candidate’s teammate assumptions; home-page filters do not restrict the choices. Each contributes the skill’s teammate berry amount using its own species, level, and favorite bonus. Empty slots and deleted or unavailable teammates contribute zero, with unavailable selections identified in details. You can select distinct Pokémon of the same species. Return to Automatic estimate to restore the four-similar-teammates assumption.
+Open the Pokémon’s details and choose **Choose teammates → Selected Pokémon** to select up to four saved teammates. Choices are ordered by estimated RP, highest first, including temporary levels; unavailable RP appears last and ties use name/ID. Each choice displays its RP. Island and teammate assumptions do not change RP; home-page filters do not restrict the choices. Each contributes the skill’s teammate berry amount using its own species, level, and favorite bonus. Empty slots and deleted or unavailable teammates contribute zero, with unavailable selections identified in details. You can select distinct Pokémon of the same species. Return to Automatic estimate to restore the four-similar-teammates assumption.
 
 ```text
 Teammate strength / day = expected activations × berries per teammate
@@ -126,7 +126,7 @@ Favorite berries also shows two speed adjustments. **Greengrass Expert** uses **
 
 Choose **Custom / event** to edit either percentage from −50% through +50%. Custom retains the selected island’s current values. Ordinary island presets reset both to zero. The first berry slot must identify the main favorite when a main-favorite bonus applies; the app will not silently treat a second-slot berry as the main favorite.
 
-The factors affect daily production, total strength, ratings, forecasts, speed sorting, and teammate-choice ordering. With an active adjustment, the frequency shown in details is recalculated from species, level, nature, and Helping Speed subskills and labeled with the interval factor. It excludes ribbon and Helping Bonus effects; the production model separately includes Helping Bonus. Saved readings, builds, and backups are unchanged. Disabling the override restores the original reading.
+The factors affect daily production, total strength, ratings, forecasts, and speed sorting. With an active adjustment, the frequency shown in details is recalculated from species, level, nature, and Helping Speed subskills and labeled with the interval factor. It excludes ribbon and Helping Bonus effects; the production model separately includes Helping Bonus. Saved readings, builds, and backups are unchanged. Disabling the override restores the original reading.
 
 Speed percentages follow the pinned [Greengrass Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2025-08-11-greengrass-expert-mode.ts) and [Cyan Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2026-08-06-cyan-expert-mode.ts). Other Expert bonuses, such as the extra main skill level, are not applied automatically.
 
@@ -135,6 +135,24 @@ Speed percentages follow the pinned [Greengrass Expert implementation](https://g
 Raw strength excludes recipe multipliers, critical meals, most support effects, teammate berries from skills other than ordinary Berry Burst, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, other event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
 
 These estimates support consistent comparisons under shared assumptions. They are not exact forecasts of Snorlax’s final strength.
+
+## Estimated RP (Research Power)
+
+**Highest RP** sorts the collection by RP descending and displays RP in its last column. Details show Estimated RP beside the Pokémon’s own stats. Berry Burst teammate choices also sort by RP and display it. RP is independent of daily strength and the app’s percentile ratings. The default collection sort remains Highest strength.
+
+The calculation adapts the pinned [Neroli’s Lab RP formula](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/utils/rp-utils/rp.ts):
+
+```text
+RP = round(miscellaneous factor × (berry component + ingredient component + skill component))
+```
+
+The three components use five hours of help output with energy excluded. Own Helping Speed S/M and nature affect frequency; unlocked ingredient slots and Ingredient Finder affect ingredients; the main skill’s catalog RP weight and Skill Trigger affect skills. RP uses its own staged decimal floors, so it does not reuse the rounded helping frequency or daily production results. Helping Bonus and other support subskills add fixed RP weights; Inventory Up adds a weight rather than using actual carry capacity. The energy-recovery nature factor is 0.92, 1, or 1.08. Displayed main skill level already includes Skill Level Up, so it is not added twice.
+
+Favorite berries, island speeds, area bonus, sleep/collection routine, teammate selections, carry-size corrections and recorded frequency do not alter RP. Temporary levels through 70 recalculate unlocks and RP without changing the saved build. Existing analyses acquire RP automatically when opened without rewriting their history or backup data.
+
+**Limits:** Good-Night Ribbon and neutralizing mint effects are not recorded and are excluded. Mew’s selected skill uses the selected effect’s RP weight with provisional species rates and the app’s skill-chance assumption; its RP is provisional. An unknown Mew skill shows no estimate. Ingredient growth is verified in the catalog only through level 70, so RP is unavailable above 70. The upstream polynomial fallback drops below the level-70 value and is intentionally not used. Unavailable entries sort last. These limitations can cause differences from in-game RP.
+
+Regression checks match five provided screenshots: Gardevoir52 = 4,591, Sceptile67 = 5,664, Treecko13 = 605, Dratini14 = 615, Foongus14 = 342. Five independent upstream fixtures and 1,494 Python/JavaScript cross-checks cover additional species, levels, and rounding.
 
 ## What a rating means
 

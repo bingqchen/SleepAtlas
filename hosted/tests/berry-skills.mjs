@@ -37,7 +37,7 @@ const db=await database(),id=crypto.randomUUID(),imageId=crypto.randomUUID(),tim
 const old={id,createdAt:timestamp,updatedAt:timestamp,analysis:legacy,history:[{createdAt:timestamp,analysis:legacy}],historyCount:1,screenshots:[{id:imageId,filename:'test.png',text:[]}]};
 await new Promise((resolve,reject)=>{const t=db.transaction(['pokemon','screenshots'],'readwrite');t.objectStore('pokemon').put(old);t.objectStore('screenshots').put({id:imageId,owner:id,blob:new Blob(['keep image'])});t.oncomplete=resolve;t.onerror=reject});
 const listed=(await api('/api/pokemon'))[0],detail=await api('/api/pokemon/'+id);
-assert.equal(detail.analysis.modelVersion,MODEL_VERSION);assert.deepEqual(listed,detail);
+assert.equal(detail.analysis.modelVersion,MODEL_VERSION);assert.deepEqual(listed,detail);assert.ok(Number.isInteger(detail.analysis.current.rp));
 assert.ok(detail.analysis.current.berryCount>legacy.current.berryCount);assert.ok(detail.analysis.current.strength>legacy.current.strength);
 assert.deepEqual(detail.analysis.build,legacy.build);assert.equal(detail.historyCount,1);assert.equal(detail.updatedAt,timestamp);
 const stored=await new Promise(resolve=>{const r=db.transaction('pokemon').objectStore('pokemon').get(id);r.onsuccess=()=>resolve(r.result)});
@@ -46,7 +46,7 @@ const picture=await new Promise(resolve=>{const r=db.transaction('screenshots').
 assert.equal(await picture.blob.text(),'keep image');
 const cached={...legacy,build:{...legacy.build,nickname:'Cache check'}};
 let calls=0;const counting={validate:b=>engine.validate(b),analyze:b=>{calls++;return engine.analyze(b)}};
-const projected=projectAnalysis(cached,catalog,counting);projectAnalysis(cached,catalog,counting);assert.equal(calls,1);
+const projected=projectAnalysis(cached,catalog,counting);assert.ok(Number.isInteger(projected.current.rp));projectAnalysis(cached,catalog,counting);assert.equal(calls,1);
 projected.current.berryCount=0;assert.ok(projectAnalysis(cached,catalog,counting).current.berryCount>0,'Return independent projected results');
 projectAnalysis({...cached,build:{...cached.build,skillLevel:1}},catalog,counting);assert.equal(calls,2,'Changes to full build invalidate cache');
 assert.deepEqual(projectAnalysis(legacy,catalog),detail.analysis,'Cached-record fallback uses the same new model');

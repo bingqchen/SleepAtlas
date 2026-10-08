@@ -48,7 +48,7 @@ assert.deepEqual(skillLevelOptions(catalog,{species:'UNKNOWN'}),[]);assert.equal
 // Test actual picker builder, independent of home filters/sort and record order.
 const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
 const records=['GARDEVOIR','RAICHU','CHARIZARD','SCEPTILE'].map(id=>({id,analysis:make(id)}));
-const ctx=vm.createContext({records,catalog,levelOverride:80,favoriteBerryConfig:ex,levelPreview:preview,berryTeamFor:()=>({berryTeam:null}),species:n=>engine.species.get(n)});
+const ctx=vm.createContext({records,catalog,levelOverride:70,favoriteBerryConfig:ex,levelPreview:preview,berryTeamFor:()=>({berryTeam:null}),fmt:String,species:n=>engine.species.get(n)});
 vm.runInContext(source.slice(source.indexOf('function teammateChoices('),source.indexOf('function openBerryTeam(')),ctx);
-const choices=vm.runInContext("teammateChoices('SCEPTILE')",ctx);assert.equal(choices.length,3);for(let i=1;i<choices.length;i++)assert.ok(choices[i-1].strength>=choices[i].strength);assert.ok(choices.every(c=>c.label.endsWith('Lv. 80')));
-console.log('Passed: main/sub/nonfavorite intervals, custom bounds, legacy presets, Python parity, cap ordering, current/forecast/rating/temporary frequency, unchanged saved stats, valid levels for all species/Mew effects, and strongest-first teammate picker.');
+const choices=vm.runInContext("teammateChoices('SCEPTILE')",ctx);assert.equal(choices.length,3);for(let i=1;i<choices.length;i++)assert.ok((choices[i-1].rp??-Infinity)>=(choices[i].rp??-Infinity));assert.ok(choices.every(c=>c.label.includes('Lv. 70 · RP ')));
+console.log('Passed: main/sub/nonfavorite intervals, custom bounds, legacy presets, Python parity, cap ordering, current/forecast/rating/temporary frequency, unchanged saved stats, valid levels for all species/Mew effects, and highest-RP teammate picker.');

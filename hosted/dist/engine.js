@@ -1,7 +1,8 @@
+import {calculateRP} from './rp.js';
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
 // Base formulas ported from atlas-1.3, with selectable favorite berry bonuses.
 // Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.6-web';
+export const MODEL_VERSION='atlas-1.7-web';
 export const favoriteMultiplier=settings=>settings.favoriteBerry?(settings.favoriteBerryMultiplier??2):1;
 export const berryValueAtLevel=(berry,level)=>Math.floor(Math.max(berry.value+level-1,berry.value*1.025**(level-1))+.5);
 export const hasTeamBerryBurst=skill=>skill?.name==='Berry Burst'&&!skill.modifierName;
@@ -103,7 +104,7 @@ export class Engine{
     const berries=gatheredBerryCount+skillBerryCount,berryStrength=gatheredBerryCount*ownValue*area+skillBerryStrength,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
     const index=effectiveLevel-1,direct=skill.strengthAmountsMean||skill.strengthAmounts,supported=!!direct&&!skill.modifierName;
     const skillStrength=supported?triggers*direct[index]*area:0,randomIngredients=skill.name==='Ingredient Magnet S'&&!skill.modifierName?triggers*skill.ingredientAmounts[index]:0;
-    return {level,skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
+    return {level,rp:calculateRP(this.catalog,build,level),skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
   }
   analyze(raw,context={}){
     const build=this.validate(raw),current=this.calculate(build,build.level,context),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount','berryCount'];

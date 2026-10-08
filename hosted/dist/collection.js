@@ -12,6 +12,10 @@ export function collectionRows(records,species,{prefix='',specialty='',sort='str
     return (!specialty||p?.specialty===specialty)&&(!query||[build.nickname,p?.displayName].some(name=>normalized(name).startsWith(query)));
   });
   if(sort==='strength')rows.sort((a,b)=>b.analysis.current.strength-a.analysis.current.strength);
+  else if(sort==='rp'){
+    const rp=row=>Number.isFinite(row.analysis.current.rp)?row.analysis.current.rp:-Infinity;
+    rows.sort((a,b)=>rp(b)-rp(a));
+  }
   else if(sort==='speed'){
     const seconds=row=>{const value=row.analysis.build.displayedFrequencySeconds;return Number.isInteger(value)&&value>0?value:Infinity};
     rows.sort((a,b)=>seconds(a)-seconds(b));

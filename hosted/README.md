@@ -6,7 +6,7 @@ A private Sites-hosted web app. This directory is separate from the original Mac
 - Browser OCR: Tesseract.js 6.0.1, tesseract.js-core 6.0.0, English @tesseract.js-data/eng 1.0.0 (4.0.0_best_int), served from this site.
 - IndexedDB sleep-atlas-collection stores Pokémon, versioned analyses, metrics, and screenshot blobs on each device. The original Mac SQLite database is not uploaded.
 - JSON backup v1 is compatible with the Mac app. Restores validate first and commit atomically. Existing IDs are preserved. JSON exports contain Pokémon builds and settings; screenshot images, OCR, and analysis histories stay local and are excluded. Older backups containing screenshots can still be restored.
-- The default calculation model follows Python atlas-1.5, including automatic Berry Burst teammate estimates; the hosted app also supports selected teammates. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
+- The default calculation model follows Python atlas-1.6, including automatic Berry Burst teammate estimates; the hosted app also supports selected teammates. Catalog reference builds use the identical seed and sample sequence. The model is an estimate, not the game's complete simulator.
 - Home-screen manifest, Apple touch icon, and service worker. Internet is needed for initial loading, OCR download, and potentially Sites sign-in. Offline data can be cleared by the browser; export backups regularly.
 
 Run a local static server from dist to preview. No production data or credentials belong in this source tree. Deployment identity is in .openai/hosting.json; publishing uses the Sites workflow.
@@ -179,3 +179,12 @@ Model `atlas-1.6-web` / Python `atlas-1.5` adds optional validated `settings.hel
 Apply the factor to base frequency before final floor, after the stat-factor rounding, outside the Helping Speed cap. Preview settings update production, ratings, forecasts and calculated own frequency without altering stored builds or history. Main-skill +1 and other Expert effects remain excluded. Sources are the pinned Neroli event implementations linked in the user guide.
 
 `node tests/island-speed.mjs` covers main/sub/nonfavorite effects, rounding boundaries, custom bounds, older preferences, Python parity, projected frequency and ratings, saved-stat preservation, every species/Mew skill cap, and strongest-first teammate choices. Existing favorites, preview, Berry Burst, Mew and offline suites remain applicable.
+
+
+## Estimated RP (Reader v36)
+
+Model `atlas-1.7-web` / Python `atlas-1.6` adds `current.rp` and forecast RP using an Apache-2.0 adaptation of the pinned Neroli RP formula (`dist/rp.js`, `rp_calculation.py`). RP is intrinsic and excludes all production-settings overrides, including island speed, favorites, routine, carry readings, and teammate effects. The formula uses corrected decimal floors, explicit 1–70 ingredient-growth data, active subskills, selected ingredient quantities, nature effects, and resolved skill RP weights. Unknown Mew skill and levels above 70 return null; selected Mew effects are provisional, ribbons/mints excluded.
+
+Highest RP displays RP in the collection’s last column and sorts descending, unavailable last. Details show Estimated RP separately from daily metrics. Teammate choices now sort by RP with name/ID ties and include the value in labels. Model refresh adds RP to legacy display analyses without changing builds, history or image-free backups; offline includes the new module. Default Highest strength and existing percentile ratings remain unchanged.
+
+`node tests/rp.mjs` checks ten independent screenshot/upstream values, staged rounding, 1,494 Python parity cases, setting invariance, temporary levels, unsupported values, and teammate ordering. `tests/berry-skills.mjs` checks legacy list/detail/cache RP refresh and untouched storage. RP sources and limitations are documented in the user guide.

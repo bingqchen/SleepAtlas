@@ -1,5 +1,6 @@
 """Deterministic, transparent estimates. Not a full Pokémon Sleep simulator."""
 from pathlib import Path
+from rp_calculation import calculate_rp
 import copy
 import hashlib
 import json
@@ -13,7 +14,7 @@ SPECIES = {p['name']: p for p in CATALOG['species']}
 NATURES = {n['name']: n for n in CATALOG['natures']}
 SUBSKILLS = {s['name']: s for s in CATALOG['subskills']}
 UNLOCKS = (10, 25, 50, 70, 80)
-MODEL_VERSION = 'atlas-1.5'
+MODEL_VERSION = 'atlas-1.6'
 MEW_SKILLS = ('Metronome','Charge Strength S','Charge Strength S (random)','Charge Strength M','Dream Shard Magnet S','Ingredient Magnet S','Energizing Cheer S','Charge Energy S','Energy For Everyone S','Tasty Chance S','Cooking Power-Up S','Extra Helpful S','Berry Burst')
 SAMPLE_COUNT = 1000
 DEFAULT_SETTINGS = {'energyMultiplier': 2.2, 'sleepHours': 8.5, 'collectionHours': 3, 'areaBonus': 0, 'favoriteBerry': False, 'teamHelpingBonus': 0}
@@ -181,7 +182,7 @@ def calculate(build, level=None):
     direct_supported=bool(direct) and not skill.get('modifierName')
     skill_strength=triggers*direct[skill_index]*area if direct_supported else 0.0
     random_ingredients=triggers*skill['ingredientAmounts'][skill_index] if skill.get('name')=='Ingredient Magnet S' and not skill.get('modifierName') else 0
-    return {'level':level,'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'ownSkillBerryCount':own_skill_berries_count,'ownSkillBerryStrength':own_skill_berry_strength,'teamSkillBerryCount':team_skill_berries,'teamSkillBerryStrength':team_skill_berry_strength,'teamBerriesPerTrigger':team_berries_per_trigger,'teamBerryMode':'automatic' if team_berry_skill else None,'teamMemberCount':4 if team_berry_skill else 0,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or skill.get('name') not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
+    return {'level':level,'rp':calculate_rp(CATALOG,build,skill,skill_index+1,level),'skillTriggers':triggers,'strength':berry_strength+ingredient_strength+skill_strength,'ingredientCount':sum(quantities.values()),'randomIngredients':random_ingredients,'berryCount':berries,'gatheredBerryCount':gathered_berries,'skillBerryCount':skill_berries,'skillBerryStrength':skill_berry_strength,'skillBerriesPerTrigger':skill_berries_per_trigger,'ownSkillBerryCount':own_skill_berries_count,'ownSkillBerryStrength':own_skill_berry_strength,'teamSkillBerryCount':team_skill_berries,'teamSkillBerryStrength':team_skill_berry_strength,'teamBerriesPerTrigger':team_berries_per_trigger,'teamBerryMode':'automatic' if team_berry_skill else None,'teamMemberCount':4 if team_berry_skill else 0,'berrySkill':skill_berries_per_trigger>0,'berryStrength':berry_strength,'ingredientStrength':ingredient_strength,'skillStrength':skill_strength,'frequencySeconds':frequency,'ingredientRate':ing_rate,'skillRate':skill_rate,'activeSubskills':sorted(active),'ingredients':[{'name':name,'longName':possible[name]['longName'],'count':qty,'strength':qty*possible[name]['value']*area} for name,qty in quantities.items()],'supportSkillExcluded':not direct_supported or skill.get('name') not in ('Charge Strength S','Charge Strength M'),'normalHelps':normal_helps,'sneakyHelps':overflow}
 
 @lru_cache(maxsize=128)
 def reference_builds(serialized):
