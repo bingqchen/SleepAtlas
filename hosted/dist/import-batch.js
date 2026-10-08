@@ -1,13 +1,34 @@
 export const MAX_BATCH_PHOTOS=20;
-export function newImportBatch(files,mode='batch'){
+export function newImportBatch(files){
   if(!files.length||files.length>MAX_BATCH_PHOTOS)throw Error(`Choose up to ${MAX_BATCH_PHOTOS} photos.`);
-  if(mode==='single'&&files.length>8)throw Error('Choose up to 8 photos for one Pokémon.');
   if(files.some(f=>f.size>12*1024*1024))throw Error('Each image must be smaller than 12 MB.');
   if(files.some(f=>!['image/png','image/jpeg','image/webp'].includes(f.type)))throw Error('Use PNG, JPG or WebP screenshots.');
-  return {id:crypto.randomUUID(),createdAt:new Date().toISOString(),entries:(mode==='single'?[files]:files.map(f=>[f])).map(group=>({id:crypto.randomUUID(),names:group.map(f=>f.name),pictureIds:group.map(()=>crypto.randomUUID()),files:group,status:'pending'}))};
+  return {id:crypto.randomUUID(),createdAt:new Date().toISOString(),entries:files.map(file=>({id:crypto.randomUUID(),names:[file.name],pictureIds:[crypto.randomUUID()],files:[file],status:'pending'}))};
+}
+export const isGroupedEntry=entry=>!['saved','skipped'].includes(entry.status)&&Math.max(entry.files?.length||0,entry.pictureIds?.length||0,entry.result?.imageIds?.length||0,entry.names?.length||0)>1;
+export function importReceipt(entry,rows){
+  for(const row of rows){const receipt=row.importReceipts?.find(r=>r.token===entry.id);if(receipt)return {id:row.id,deduplicated:receipt.deduplicated,alreadySaved:true}}
+  return null;
+}
+// Repair v39 queues without reusing the combined readings or copying one
+// Pokémon's manual corrections onto every image. The caller persists before OCR.
+export function separateGroupedEntries(batch,rows=[]){
+  if(!batch.entries.some(isGroupedEntry))return batch;
+  const next=structuredClone(batch);next.previousGroupedDrafts||=[];
+  next.entries=next.entries.flatMap(entry=>{
+    if(!isGroupedEntry(entry))return [entry];
+    const receipt=importReceipt(entry,rows);
+    if(receipt)return [{...entry,status:'saved',receipt,files:[],result:undefined,draft:undefined}];
+    const count=Math.max(entry.files?.length||0,entry.pictureIds?.length||0,entry.result?.imageIds?.length||0,entry.names?.length||0);
+    if(entry.files?.length!==count||entry.files.some(file=>!(file instanceof Blob)))throw Error('Some photos in this unfinished import are missing. Reopen the app with device storage available and try again.');
+    if(entry.draft)next.previousGroupedDrafts.push({id:entry.id,names:entry.names,draft:entry.draft});
+    return entry.files.map((file,i)=>({id:crypto.randomUUID(),names:[entry.names?.[i]||file.name||`Photo ${i+1}`],pictureIds:[entry.result?.imageIds?.[i]||entry.pictureIds?.[i]||crypto.randomUUID()],files:[file],status:'pending'}));
+  });
+  return next;
 }
 export const batchSummary=batch=>({saved:batch.entries.filter(e=>e.status==='saved').length,updated:batch.entries.filter(e=>e.status==='saved'&&e.receipt?.deduplicated).length,review:batch.entries.filter(e=>e.status==='review').length,pending:batch.entries.filter(e=>['pending','recognized'].includes(e.status)).length,skipped:batch.entries.filter(e=>e.status==='skipped').length,total:batch.entries.length});
 export async function runImportBatch(batch,{read,save,persist,progress=()=>{}}){
+  if(batch.entries.some(isGroupedEntry))throw Error('This unfinished import contains grouped photos. Resume it to separate them before reading.');
   for(const [index,entry] of batch.entries.entries()){
     if(!['pending','recognized'].includes(entry.status))continue;
     const report=message=>progress(`Photo ${index+1} of ${batch.entries.length} · ${message}`);

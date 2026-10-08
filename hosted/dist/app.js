@@ -1,8 +1,8 @@
 import {setupOffline} from './offline.js';
 import {formatFrequency,subskillSlots,calculatedStats,updatedCarrySize} from './pokemon-stats.js';
-import {api,projectAnalysis,discardPictures,savePictures} from './local-api.js';
+import {api,projectAnalysis,discardPictures,savePictures,readPictures} from './local-api.js';
 import {createScreenshotReader} from './ocr.js';
-import {newImportBatch,runImportBatch,batchSummary} from './import-batch.js';
+import {newImportBatch,runImportBatch,batchSummary,isGroupedEntry,importReceipt,separateGroupedEntries} from './import-batch.js';
 import {resolveIngredients} from './ingredient-matcher.js';
 import {collectionRows,specialtyCounts,specialtyLabels} from './collection.js';
 import {speciesChoices} from './evolution.js';
@@ -122,7 +122,8 @@ function openEditor(build={},context={}){
   $('skip-import-photo').hidden=!reviewEntryId;
   $('editor').querySelector('[data-close="editor"]').textContent=reviewEntryId?'Finish later':'Cancel';
   if(reviewEntryId){$('editor-title').textContent=`Review photo ${importBatch.entries.findIndex(e=>e.id===reviewEntryId)+1} of ${importBatch.entries.length}`;$('save-button').textContent='Save & next'}
-  $('editor-body').innerHTML=`${demo?'<div class="notice info">Example only. It becomes part of your collection only if you save it.</div>':''}${context.warnings?`<div class="notice">${context.warnings.map(escapeHTML).join('<br>')}</div>`:'<div class="notice info">Use your Pokémon’s details. Helping frequency and carry limit update automatically when its stats change.</div>'}<div class="preview-strip">${pictureURLs.map((u,i)=>`<img src="${u}" alt="Screenshot ${i+1}">`).join('')}</div><div class="form-grid"><label class="field full" for="f-species">Species<select id="f-species" required>${options(choices.map(p=>({value:p.name,label:p.displayName})),selectedSpecies,'Choose species…')}</select>${editing?'<small>Choose from this Pokémon’s evolution family.</small>':''}</label>${field('Nickname (optional)','f-nickname',build.nickname,'text','maxlength="80"')}${field('Pokémon level','f-level',build.level,'number','min="1" max="100" required')}<label class="field" for="f-nature">Nature<select id="f-nature" required>${options(catalog.natures.map(n=>({value:n.name,label:n.prettyName})),build.nature,'Choose nature…')}</select></label><label class="field" for="f-skillLevel">Displayed main skill level<select id="f-skillLevel" required></select><small id="skill-level-help"></small></label>${field('Carry limit','f-carrySize',build.carrySize,'number','min="1" max="200" required')}<div class="field" id="main-skill-field"></div></div><p class="small" id="carry-help">Carry limit updates for the species, evolution stage, and active Inventory Up subskills. Existing extra carry bonuses are retained. You can correct the value from the game.</p><h3 class="form-section">Helping frequency</h3><input type="hidden" id="f-frequency-source" value="${build.frequencySource==='calculated'?'calculated':'recorded'}"><p class="small" id="frequency-help"></p><div class="form-grid">${field('Minutes','f-frequency-minutes',build.displayedFrequencySeconds?Math.floor(build.displayedFrequencySeconds/60):'','number','min="0" max="1440" step="1" aria-describedby="frequency-help"')}${field('Seconds','f-frequency-seconds',build.displayedFrequencySeconds?build.displayedFrequencySeconds%60:'','number','min="0" max="59" step="1" aria-describedby="frequency-help"')}</div><h3 class="form-section">Ingredient slots</h3><p class="small">Confirm the icons in all three slots. Future slots are used for projections.</p><div class="form-grid" id="ingredient-fields"></div><h3 class="form-section">Subskills</h3>${context.detectedSubskills?.length?`<p class="small">Detected: ${context.detectedSubskills.map(escapeHTML).join(', ')}. Verify each unlock level.</p>`:''}<div class="subskill-grid">${unlocks.map((l,i)=>`<label class="field" for="sub-${l}">Unlocks at Lv. ${l}<select id="sub-${l}">${options(catalog.subskills.map(s=>s.name),build.subskills?.[i],'Unknown / no bonus modeled')}</select></label>`).join('')}</div><details><summary>Daily routine & analysis settings</summary><p class="small">These assumptions affect output. The 2.2× energy setting is an average scenario, not an energy simulation.</p><div class="form-grid"><div id="mew-skill-assumption" class="field full" ${p?.name==='MEW'?'':'hidden'}>${field('Assumed Mew base skill chance (%)','f-mewSkillChance',build.mewSkillChance??4,'number','min="0.01" max="100" step="0.01"')}<small>Mew’s skill and ingredient rates are unverified. Change this assumption if you have a measured rate for the selected skill.</small></div>${field('Average energy speed multiplier','s-energy',settings.energyMultiplier,'number','min="1" max="2.5" step="0.1" required')}${field('Sleep hours (no collection)','s-sleep',settings.sleepHours,'number','min="0" max="12" step="0.5" required')}${field('Collect every (awake hours)','s-collection',settings.collectionHours,'number','min="0.25" max="12" step="0.25" required')}${field('Area bonus (%)','s-area',settings.areaBonus,'number','min="0" max="100" step="1" required')}${field('Other teammates with Helping Bonus','s-team',settings.teamHelpingBonus,'number','min="0" max="4" step="1" required')}<label class="check-row"><input id="s-favorite" type="checkbox" ${settings.favoriteBerry?'checked':''}>Snorlax’s favorite berry</label></div></details><label class="field" for="f-notes">Notes<textarea id="f-notes" rows="2" maxlength="4000" placeholder="Anything you want to remember…">${escapeHTML(build.notes||'')}</textarea></label>${ocrText?`<details><summary>Recognized screenshot text</summary><pre>${escapeHTML(ocrText)}</pre></details>`:''}<p class="small">Saving updates a matching Pokémon, including level changes and subskill upgrades. The previous analysis stays in its history.</p>`;
+  $('editor-body').innerHTML=`${pictureURLs.length?`<figure class="review-photo"><button type="button" class="review-photo-button" id="review-photo-button" aria-label="Enlarge this photo"><img src="${pictureURLs[0]}" alt="Photo being reviewed"></button><figcaption>Review this photo. Tap it to enlarge.</figcaption></figure>`:''}${demo?'<div class="notice info">Example only. It becomes part of your collection only if you save it.</div>':''}${context.warnings?`<div class="notice">${context.warnings.map(escapeHTML).join('<br>')}</div>`:'<div class="notice info">Use your Pokémon’s details. Helping frequency and carry limit update automatically when its stats change.</div>'}<div class="form-grid"><label class="field full" for="f-species">Species<select id="f-species" required>${options(choices.map(p=>({value:p.name,label:p.displayName})),selectedSpecies,'Choose species…')}</select>${editing?'<small>Choose from this Pokémon’s evolution family.</small>':''}</label>${field('Nickname (optional)','f-nickname',build.nickname,'text','maxlength="80"')}${field('Pokémon level','f-level',build.level,'number','min="1" max="100" required')}<label class="field" for="f-nature">Nature<select id="f-nature" required>${options(catalog.natures.map(n=>({value:n.name,label:n.prettyName})),build.nature,'Choose nature…')}</select></label><label class="field" for="f-skillLevel">Displayed main skill level<select id="f-skillLevel" required></select><small id="skill-level-help"></small></label>${field('Carry limit','f-carrySize',build.carrySize,'number','min="1" max="200" required')}<div class="field" id="main-skill-field"></div></div><p class="small" id="carry-help">Carry limit updates for the species, evolution stage, and active Inventory Up subskills. Existing extra carry bonuses are retained. You can correct the value from the game.</p><h3 class="form-section">Helping frequency</h3><input type="hidden" id="f-frequency-source" value="${build.frequencySource==='calculated'?'calculated':'recorded'}"><p class="small" id="frequency-help"></p><div class="form-grid">${field('Minutes','f-frequency-minutes',build.displayedFrequencySeconds?Math.floor(build.displayedFrequencySeconds/60):'','number','min="0" max="1440" step="1" aria-describedby="frequency-help"')}${field('Seconds','f-frequency-seconds',build.displayedFrequencySeconds?build.displayedFrequencySeconds%60:'','number','min="0" max="59" step="1" aria-describedby="frequency-help"')}</div><h3 class="form-section">Ingredient slots</h3><p class="small">Confirm the icons in all three slots. Future slots are used for projections.</p><div class="form-grid" id="ingredient-fields"></div><h3 class="form-section">Subskills</h3>${context.detectedSubskills?.length?`<p class="small">Detected: ${context.detectedSubskills.map(escapeHTML).join(', ')}. Verify each unlock level.</p>`:''}<div class="subskill-grid">${unlocks.map((l,i)=>`<label class="field" for="sub-${l}">Unlocks at Lv. ${l}<select id="sub-${l}">${options(catalog.subskills.map(s=>s.name),build.subskills?.[i],'Unknown / no bonus modeled')}</select></label>`).join('')}</div><details><summary>Daily routine & analysis settings</summary><p class="small">These assumptions affect output. The 2.2× energy setting is an average scenario, not an energy simulation.</p><div class="form-grid"><div id="mew-skill-assumption" class="field full" ${p?.name==='MEW'?'':'hidden'}>${field('Assumed Mew base skill chance (%)','f-mewSkillChance',build.mewSkillChance??4,'number','min="0.01" max="100" step="0.01"')}<small>Mew’s skill and ingredient rates are unverified. Change this assumption if you have a measured rate for the selected skill.</small></div>${field('Average energy speed multiplier','s-energy',settings.energyMultiplier,'number','min="1" max="2.5" step="0.1" required')}${field('Sleep hours (no collection)','s-sleep',settings.sleepHours,'number','min="0" max="12" step="0.5" required')}${field('Collect every (awake hours)','s-collection',settings.collectionHours,'number','min="0.25" max="12" step="0.25" required')}${field('Area bonus (%)','s-area',settings.areaBonus,'number','min="0" max="100" step="1" required')}${field('Other teammates with Helping Bonus','s-team',settings.teamHelpingBonus,'number','min="0" max="4" step="1" required')}<label class="check-row"><input id="s-favorite" type="checkbox" ${settings.favoriteBerry?'checked':''}>Snorlax’s favorite berry</label></div></details><label class="field" for="f-notes">Notes<textarea id="f-notes" rows="2" maxlength="4000" placeholder="Anything you want to remember…">${escapeHTML(build.notes||'')}</textarea></label>${ocrText?`<details><summary>Recognized screenshot text</summary><pre>${escapeHTML(ocrText)}</pre></details>`:''}<p class="small">Saving updates a matching Pokémon, including level changes and subskill upgrades. The previous analysis stays in its history.</p>`;
+  if($('review-photo-button'))$('review-photo-button').onclick=()=>openReviewPhoto();
   renderIngredientFields(build.ingredients);renderMainSkillField(build.mainSkill,build.skillLevel);
   $('f-species').onchange=()=>{const selected=[0,30,60].map(l=>$(`ing-${l}`).value),p=species($('f-species').value);renderMainSkillField();const matched=resolveIngredients(context.ingredientMatches||[],p);renderIngredientFields(editing?selected:matched.ingredients);if(matched.warnings.length)toast(matched.warnings.join(' '))};
   const key=stat=>{const b=getBuild();return JSON.stringify([b.species,calculatedStats(catalog,b)[stat]])};
@@ -172,6 +173,19 @@ function openEditor(build={},context={}){
   if(!$('editor').open)$('editor').showModal();
   if(pendingEntry)saveDraft();
 }
+
+function openReviewPhoto(){
+  if(!pictureURLs[0])return;
+  $('photo-viewer-image').src=pictureURLs[0];
+  $('photo-viewer-scroll').classList.remove('zoomed');
+  $('photo-zoom').textContent='Zoom 2×';$('photo-zoom').setAttribute('aria-pressed','false');
+  $('photo-viewer').showModal();$('photo-viewer-scroll').scrollTo(0,0);
+}
+$('photo-zoom').onclick=()=>{
+  const zoomed=$('photo-viewer-scroll').classList.toggle('zoomed');
+  $('photo-zoom').textContent=zoomed?'Fit width':'Zoom 2×';$('photo-zoom').setAttribute('aria-pressed',String(zoomed));
+};
+$('photo-viewer').onclose=()=>{$('photo-viewer-image').removeAttribute('src')};
 function renderMainSkillField(selected='',level=$('f-skillLevel').value){
   const p=species($('f-species').value),choices=mainSkillOptions(catalog,p?.name);
   $('main-skill-field').classList.toggle('full',choices.length>0);
@@ -263,7 +277,7 @@ async function upload(files){
   if(importBatch){await resumeBatch();return}
   if(!files.length)return;
   try{
-    importBatch=newImportBatch(files,$('upload-mode').value);await processBatch();
+    importBatch=newImportBatch(files);await processBatch();
   }catch(error){$('upload-status').textContent=error.message;toast(error.message);renderBatchStatus()}finally{$('screenshots').value=''}
 }
 function renderBatchStatus(){
@@ -293,7 +307,26 @@ async function processBatch(){
 }
 async function resumeBatch(){
   if(uploading||saving||!importBatch)return;
-  try{if(batchSummary(importBatch).pending)await processBatch();else await continueBatch()}catch(error){toast(error.message)}
+  try{
+    if(importBatch.entries.some(isGroupedEntry))await repairGroupedImport();
+    if(batchSummary(importBatch).pending)await processBatch();else await continueBatch();
+  }catch(error){toast(error.message)}
+}
+async function repairGroupedImport(){
+  setUploadBusy(true);
+  try{
+    await refresh();const recovered=structuredClone(importBatch);
+    for(const entry of recovered.entries.filter(isGroupedEntry)){
+      // A save may have committed before the old queue write failed.
+      if(importReceipt(entry,records))continue;
+      const count=Math.max(entry.files?.length||0,entry.names?.length||0,entry.pictureIds?.length||0,entry.result?.imageIds?.length||0);
+      if(entry.files?.length===count&&entry.files.every(file=>file instanceof Blob))continue;
+      const ids=entry.result?.imageIds?.length?entry.result.imageIds:entry.pictureIds||[],pictures=await readPictures(ids);
+      entry.files=Array.from({length:count},(_,i)=>entry.files?.[i]|| (pictures[i]?.blob?new File([pictures[i].blob],entry.names?.[i]||pictures[i].filename,{type:pictures[i].mime}):null));
+    }
+    const next=separateGroupedEntries(recovered,records);await persistImportBatch(next);importBatch=next;
+    toast('Grouped photos separated. Each photo will be read again on its own.');renderBatchStatus();
+  }finally{setUploadBusy(false)}
 }
 async function continueBatch(){
   await refresh();renderBatchStatus();
@@ -462,7 +495,7 @@ $('discard-changes').oncancel=event=>{if(closingEditor)event.preventDefault()};
 window.addEventListener('beforeunload',event=>{if(!saving&&!closingEditor&&hasUnsavedChanges()){saveDraft();event.preventDefault();event.returnValue=''}});
 function setUploadBusy(busy){
   uploading=busy;
-  ['screenshots','choose-screenshots','manual-button','resume-draft','upload-mode','resume-batch','update-button'].forEach(id=>{if($(id))$(id).disabled=busy});
+  ['screenshots','choose-screenshots','manual-button','resume-draft','resume-batch','update-button'].forEach(id=>{if($(id))$(id).disabled=busy});
   $('import-dialog').querySelector('[data-close]').disabled=busy;
 }
 function closeActions(restoreFocus=false){

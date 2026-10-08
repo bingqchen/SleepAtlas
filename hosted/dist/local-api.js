@@ -12,6 +12,7 @@ export function database(){
 export async function initialize(){if(!ready)ready=fetch('/catalog.json').then(r=>{if(!r.ok)throw Error('Could not load the Pokémon catalog. Connect to the internet and reload.');return r.json()}).then(c=>({catalog:c,engine:new Engine(c)})).catch(e=>{ready=null;throw e});return ready}
 async function all(store){const db=await database();return request(db.transaction(store).objectStore(store).getAll())}
 async function get(store,id){const db=await database();return request(db.transaction(store).objectStore(store).get(id))}
+export async function readPictures(ids){return Promise.all(ids.map(id=>get('screenshots',id)))}
 const refreshedAnalyses=new Map();
 export function projectAnalysis(analysis,catalog,engine=new Engine(catalog)){
   if(analysis.modelVersion===MODEL_VERSION&&analysis.catalogCommit===catalog.commit)return analysis;

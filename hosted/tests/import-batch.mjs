@@ -1,11 +1,32 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {newImportBatch,runImportBatch,batchSummary} from '../dist/import-batch.js';
+import {newImportBatch,runImportBatch,batchSummary,separateGroupedEntries,isGroupedEntry} from '../dist/import-batch.js';
 const files=Array.from({length:3},(_,i)=>new File([String(i)],`photo-${i}.jpg`,{type:'image/jpeg'}));
 assert.throws(()=>newImportBatch([]));assert.throws(()=>newImportBatch(Array(21).fill(files[0])));
-assert.throws(()=>newImportBatch(Array(9).fill(files[0]),'single'));
 assert.throws(()=>newImportBatch([new File(['x'],'bad.txt',{type:'text/plain'})]));
-assert.equal(newImportBatch(files,'single').entries.length,1);
+assert.equal(newImportBatch(files,'single').entries.length,3,'An old grouping preference can never combine new uploads');
+assert.equal(newImportBatch(Array(9).fill(files[0])).entries.length,9);
+const grouped={id:crypto.randomUUID(),status:'review',names:files.map(f=>f.name),pictureIds:files.map(()=>crypto.randomUUID()),files,draft:{build:{nickname:'Combined edits'}},result:{fields:{level:67},review:{ready:false,reasons:['Conflicting levels']}}};
+const legacy={id:crypto.randomUUID(),entries:[{id:'complete',status:'saved',files:[]},grouped,{id:'skipped',status:'skipped',files:[]}]};
+const separated=separateGroupedEntries(legacy);
+assert.equal(legacy.entries.length,3,'Migration leaves its input intact until persistence succeeds');
+assert.equal(separated.entries.length,5);assert.equal(separated.entries[0].status,'saved');assert.equal(separated.entries.at(-1).status,'skipped');
+assert.equal(separated.previousGroupedDrafts[0].draft.build.nickname,'Combined edits');
+for(const [i,entry] of separated.entries.slice(1,4).entries()){
+  assert.equal(entry.status,'pending');assert.equal(entry.files.length,1);assert.deepEqual(entry.pictureIds,[grouped.pictureIds[i]]);assert.deepEqual(entry.names,[files[i].name]);
+  assert.equal(entry.result,undefined);assert.equal(entry.draft,undefined);assert.notEqual(entry.id,grouped.id);
+}
+assert.equal(new Set(separated.entries.map(e=>e.id)).size,5);
+assert.equal(separateGroupedEntries(separated),separated,'Repeated migration preserves child save tokens');
+const five=Array.from({length:5},(_,i)=>new File([String(i)],`five-${i}.jpg`,{type:'image/jpeg'}));
+const reported=separateGroupedEntries({entries:[{id:crypto.randomUUID(),status:'review',files:five,names:five.map(f=>f.name),pictureIds:five.map(()=>crypto.randomUUID()),result:{fields:{},review:{ready:false,reasons:['Conflicting readings']}}}]});
+assert.equal(reported.entries.length,5);assert.ok(reported.entries.every(e=>e.files.length===1&&e.status==='pending'));
+const committed=separateGroupedEntries(legacy,[{id:'saved-before-reload',importReceipts:[{token:grouped.id,deduplicated:1}]}]);
+assert.equal(committed.entries.length,3);assert.equal(committed.entries[1].status,'saved');assert.equal(committed.entries[1].receipt.id,'saved-before-reload');
+assert.equal(committed.entries[1].files.length,0);
+assert.throws(()=>separateGroupedEntries({...legacy,entries:[{...grouped,files:[]}]}),/missing/);
+assert.equal(isGroupedEntry({...grouped,files:[]}),true,'Recognize groups whose original files need recovery');
+await assert.rejects(runImportBatch(legacy,{}),/grouped photos/);
 const batch=newImportBatch(files),reads=[],saved=[],writes=[];
 const complete={fields:{species:'MAREEP'},imageIds:[],review:{ready:true,reasons:[]}};
 await runImportBatch(batch,{read:async group=>{reads.push(group);if(group[0]===files[2])throw Error('Reader unavailable');return group[0]===files[1]?{fields:{level:11},review:{ready:false,reasons:['Missing species']}}:structuredClone(complete)},save:async(build,ids,token)=>{saved.push({build,token});return {id:crypto.randomUUID(),deduplicated:0}},persist:async value=>writes.push(structuredClone(value))});
@@ -45,4 +66,4 @@ assert.equal((await save(body)).alreadySaved,true,'Receipts survive a later prog
 assert.equal((await api('/api/pokemon/'+row.id)).historyCount,2);
 const unused={...picture,id:crypto.randomUUID()};await savePictures([unused]);await discardPictures([unused.id]);assert.equal(await getPicture(unused.id),undefined);
 assert.ok(!JSON.stringify(await api('/api/backup')).includes('importToken'));
-db.close();console.log('Passed: independent photos, partial failures, persisted retry tokens, single-Pokémon grouping, deduplication, history and pending/owned screenshot preservation.');
+db.close();console.log('Passed: independent photos, legacy grouped-review migration, partial failures, persisted retry tokens, deduplication, history and pending/owned screenshot preservation.');
