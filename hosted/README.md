@@ -188,3 +188,12 @@ Model `atlas-1.7-web` / Python `atlas-1.6` adds `current.rp` and forecast RP usi
 Highest RP displays RP in the collection’s last column and sorts descending, unavailable last. Details show Estimated RP separately from daily metrics. Teammate choices now sort by RP with name/ID ties and include the value in labels. Model refresh adds RP to legacy display analyses without changing builds, history or image-free backups; offline includes the new module. Default Highest strength and existing percentile ratings remain unchanged.
 
 `node tests/rp.mjs` checks ten independent screenshot/upstream values, staged rounding, 1,494 Python parity cases, setting invariance, temporary levels, unsupported values, and teammate ordering. `tests/berry-skills.mjs` checks legacy list/detail/cache RP refresh and untouched storage. RP sources and limitations are documented in the user guide.
+
+
+## Island skill-level boost (Reader v37)
+
+The overflow action and dialog are now **Select island**. Both Expert presets default to `mainSkillLevelBonus: 1`; ordinary presets reset it to zero, and Custom / event can select zero or one. Legacy Expert preferences acquire the default through validation. Only the first berry qualifies.
+
+`favoriteSkillLevelBonus` derives the effect; `level-preview` passes it as context through current, reference, future-level, and ingredient-alternative calculations. `resolveMainSkill` accepts an explicit bonus and caps the resolved skill (including Mew selections). Its default remains zero for RP and editor options. `current.mainSkillLevel` reports the effective level and `current.mainSkillLevelBonus` reports the applied increase. Builds and saved levels remain unchanged. The hosted model is `atlas-1.8-web`; the original Python calculator has no island-selection context and remains `atlas-1.6`.
+
+`tests/island-skill.mjs` verifies primary-only eligibility, caps for every species/Mew effect, RP independence, production/forecast/reference consistency, repeated previews, preference migration/reset, and UI draft controls. Existing favorite-berry persistence tests also cover reloads and unchanged backups/history.

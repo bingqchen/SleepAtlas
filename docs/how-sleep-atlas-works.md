@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v36, October 8, 2026**, using calculation model `atlas-1.7-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v37, October 8, 2026**, using calculation model `atlas-1.8-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -122,13 +122,19 @@ The berry quantities and receiver-specific values follow the pinned [Neroli’s 
 
 ### Island helping speed
 
-Favorite berries also shows two speed adjustments. **Greengrass Expert** uses **+10%** for the first (main) favorite and **−15%** for non-favorites; the two other favorites keep normal speed. Cyan Expert uses +20% and −35%. These percentages shorten or lengthen the help interval: +10% means an interval factor of 0.90, and −15% means 1.15. They are applied separately from the 35% subskill speed cap, to base frequency before the final rounding down.
+Select island also shows two speed adjustments. **Greengrass Expert** uses **+10%** for the first (main) favorite and **−15%** for non-favorites; the two other favorites keep normal speed. Cyan Expert uses +20% and −35%. These percentages shorten or lengthen the help interval: +10% means an interval factor of 0.90, and −15% means 1.15. They are applied separately from the 35% subskill speed cap, to base frequency before the final rounding down.
 
 Choose **Custom / event** to edit either percentage from −50% through +50%. Custom retains the selected island’s current values. Ordinary island presets reset both to zero. The first berry slot must identify the main favorite when a main-favorite bonus applies; the app will not silently treat a second-slot berry as the main favorite.
 
 The factors affect daily production, total strength, ratings, forecasts, and speed sorting. With an active adjustment, the frequency shown in details is recalculated from species, level, nature, and Helping Speed subskills and labeled with the interval factor. It excludes ribbon and Helping Bonus effects; the production model separately includes Helping Bonus. Saved readings, builds, and backups are unchanged. Disabling the override restores the original reading.
 
-Speed percentages follow the pinned [Greengrass Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2025-08-11-greengrass-expert-mode.ts) and [Cyan Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2026-08-06-cyan-expert-mode.ts). Other Expert bonuses, such as the extra main skill level, are not applied automatically.
+Speed percentages follow the pinned [Greengrass Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2025-08-11-greengrass-expert-mode.ts) and [Cyan Expert implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/events/events/2026-08-06-cyan-expert-mode.ts). Both Expert presets also apply +1 main skill level to helpers matching the first favorite berry, capped at the selected skill’s maximum. Custom / event can enable or disable it. This is a temporary analysis-context effect: details display the effective skill level, but the editor, saved build, history, backups, and intrinsic RP keep the original level. The same bonus applies to reference builds, ingredient alternatives, and forecasts; it never stacks again when reopening a preview.
+
+### Rotating Expert bonuses
+
+The weekly pool contains three effects for Pokémon matching any of the three favorite berries: main-skill trigger chance ×1.25, favorite-berry strength ×2.4 instead of ×2, or extra ingredients per ingredient-producing help. The ingredient bonus is +1, with ingredient and All specialists having a 50% chance of another +1 (mean +1.5). It does not increase ingredient-finding probability. Sleep Atlas currently models the berry option through its multiplier; the other two weekly options are not modeled. Cyan Expert also has a fixed +5 carry bonus for the main favorite, which is not added automatically here.
+
+The [official Expert Mode announcement](https://www.pokemonsleep.net/en/news/323932383138363132393037393333363937/) confirms one weekly bonus and stacking with events. Exact numerical weekly effects follow the [Neroli island selector](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/frontend/src/components/map/island-select.vue); the extra ingredient-specialist roll follows its [simulation implementation](https://github.com/nerolis-lab/nerolis-lab/blob/47f1ff33f4637ceb2bd357b7d778c8df0a94200a/backend/src/services/simulation-service/team-simulator/member-state/member-state.ts).
 
 ### What the estimates leave out
 
@@ -173,11 +179,11 @@ Tap a row to see its details, including the nature name with up/down effect badg
 | Control | Effect | Persistence |
 | --- | --- | --- |
 | Temporary level | Recalculates collection and details at 25, 30, 50, 60, 70, or 80, including relevant unlocks, carry, and frequency | Clears on reload; does not change saved builds |
-| Favorite berries in the overflow menu | Selects an island preset or up to three manual berry types with a 2× or 2.4× strength multiplier | Remembered on this device; not included in Pokémon backups |
+| Select island in the overflow menu | Selects an island preset or up to three manual berry types with a 2× or 2.4× strength multiplier | Remembered on this device; not included in Pokémon backups |
 | Use saved settings for favorites | Removes the collection override and uses each Pokémon’s individual setting | Remembers removal of the override |
 | Future levels in details | Projects levels 30, 60, 70, and 80 above the current displayed level | Derived estimates; main skill level stays fixed |
 
-The Favorite berries dialog includes an island selector. Cyan Beach, Taupe Hollow, Snowdrop Tundra, Lapis Lakeside, Old Gold Power Plant, and Amber Canyon fill their fixed three berries and 2× multiplier. Selecting Greengrass Isle clears all three berries, resets the multiplier to 2×, and enables manual choices for the week. Expert areas also require manual weekly choices: their 2.4× berry effect is not guaranteed. Custom / event unlocks the current choices for changes. Apply remembers the island and preferences on this device; Cancel leaves the applied settings alone. Other Expert bonuses are not simulated.
+The Select island dialog includes an island selector. Cyan Beach, Taupe Hollow, Snowdrop Tundra, Lapis Lakeside, Old Gold Power Plant, and Amber Canyon fill their fixed three berries and 2× multiplier. Selecting Greengrass Isle clears all three berries, resets the multiplier to 2×, and enables manual choices for the week. Expert areas also require manual weekly choices: their 2.4× berry effect is not guaranteed. Custom / event unlocks the current choices for changes. Apply remembers the island and preferences on this device; Cancel leaves the applied settings alone. The primary favorite’s capped +1 main skill level is applied. Rotating skill-trigger and ingredient bonuses and Cyan’s extra carry capacity are not simulated.
 
 An applied empty favorite selection gives every berry ordinary strength. Temporary level and favorite berry overrides affect collection totals and sorting; editing or exporting still uses the actual saved builds. The Future levels table does not change the collection sort. Levels above 70 are labeled hypothetical projections, not a claim about the current game cap.
 

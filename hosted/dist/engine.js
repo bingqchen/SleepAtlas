@@ -2,7 +2,7 @@ import {calculateRP} from './rp.js';
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
 // Base formulas ported from atlas-1.3, with selectable favorite berry bonuses.
 // Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.7-web';
+export const MODEL_VERSION='atlas-1.8-web';
 export const favoriteMultiplier=settings=>settings.favoriteBerry?(settings.favoriteBerryMultiplier??2):1;
 export const berryValueAtLevel=(berry,level)=>Math.floor(Math.max(berry.value+level-1,berry.value*1.025**(level-1))+.5);
 export const hasTeamBerryBurst=skill=>skill?.name==='Berry Burst'&&!skill.modifierName;
@@ -65,7 +65,7 @@ export class Engine{
     if(raw.frequencySource!==undefined){if(!['recorded','calculated'].includes(raw.frequencySource))throw Error('Invalid helping frequency source.');recorded.frequencySource=raw.frequencySource}
     return {species:raw.species,nickname:nickname.trim()||p.displayName,nature:raw.nature,level,skillLevel,subskills:[...raw.subskills],ingredients:[...raw.ingredients],settings,notes,carrySize:numeric(raw.carrySize??p.carrySize,'Carry limit',1,200,true),...recorded,...selected};
   }
-  calculate(build,level=build.level,{berryTeam=null}={}){
+  calculate(build,level=build.level,{berryTeam=null,mainSkillLevelBonus=0}={}){
     const p=this.species.get(build.species),nature=this.natures.get(build.nature),active=build.subskills.filter((s,i)=>s&&level>=UNLOCKS[i]),settings=build.settings;
     const bonus=name=>active.includes(name)?this.subskills.get(name).amount:0;
     const speed=Math.min(.35,bonus('Helping Speed S')+bonus('Helping Speed M')+bonus('Helping Bonus')+.05*settings.teamHelpingBonus);
@@ -83,7 +83,7 @@ export class Engine{
     let normalHelps=0,overflow=0,triggers=0;
     for(const duration of intervals){const helps=duration*helpsPerHour,effective=Math.min(helps,carry/itemsPerHelp);normalHelps+=effective;overflow+=helps-effective;triggers+=skillExpectation(effective,skillRate,['skill','all'].includes(p.specialty)?2:1)}
     const quantities=new Map([...possible.keys()].map(k=>[k,0]));for(const slot of slots){const name=slot.ingredient.name;quantities.set(name,quantities.get(name)+normalHelps*ingRate/slots.length*slot.amount)}
-    const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build);
+    const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build,{levelBonus:mainSkillLevelBonus});
     const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount,skillBerriesPerTrigger=ownSkillBerries(skill,effectiveLevel),ownSkillBerryCount=triggers*skillBerriesPerTrigger;
     const berryValue=berryValueAtLevel(p.berry,level),area=1+settings.areaBonus/100,ownValue=berryValue*favoriteMultiplier(settings);
     const teamBerrySkill=hasTeamBerryBurst(skill),teamBerryMode=teamBerrySkill?(berryTeam===null?'automatic':'selected'):null;
@@ -104,7 +104,7 @@ export class Engine{
     const berries=gatheredBerryCount+skillBerryCount,berryStrength=gatheredBerryCount*ownValue*area+skillBerryStrength,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
     const index=effectiveLevel-1,direct=skill.strengthAmountsMean||skill.strengthAmounts,supported=!!direct&&!skill.modifierName;
     const skillStrength=supported?triggers*direct[index]*area:0,randomIngredients=skill.name==='Ingredient Magnet S'&&!skill.modifierName?triggers*skill.ingredientAmounts[index]:0;
-    return {level,rp:calculateRP(this.catalog,build,level),skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
+    return {level,mainSkillLevel:effectiveLevel,mainSkillLevelBonus:effectiveLevel-resolveMainSkill(this.catalog,build).effectiveLevel,rp:calculateRP(this.catalog,build,level),skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
   }
   analyze(raw,context={}){
     const build=this.validate(raw),current=this.calculate(build,build.level,context),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount','berryCount'];
@@ -116,7 +116,7 @@ export class Engine{
     current.ratings=Object.fromEntries(keys.map(k=>[k,percentile(current[k],reference[k])]));for(const item of current.ingredients)item.rating=item.count?percentile(item.count,ingredients.get(item.name)):null;
     const forecasts=[30,60,70,80].filter(l=>l>build.level).map(l=>this.calculate(build,l,context)),ingredientAlternatives=[];
     for(const s30 of p.ingredient30)for(const s60 of p.ingredient60){const variant={...build,ingredients:[build.ingredients[0],s30.ingredient.name,s60.ingredient.name]},r=this.calculate(variant,60,context);ingredientAlternatives.push({slots:variant.ingredients,ingredients:r.ingredients,ingredientCount:r.ingredientCount,strength:r.strength})}
-    const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build);
+    const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build,{levelBonus:context.mainSkillLevelBonus??0});
     const warnings=[];if(build.subskills.some((s,i)=>!s&&UNLOCKS[i]<=build.level))warnings.push('Some unlocked subskills are unknown; those slots contribute no bonus.');
     if(p.name==='MEW'){
       warnings.push(`Mew estimates are provisional: base skill chance is assumed to be ${build.mewSkillChance??p.skillPercentage}%, and the catalog ingredient rate is unverified. Actual skill chance varies with the selected skill. Adjust the assumption in the editor.`);

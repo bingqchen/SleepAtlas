@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {spawnSync} from 'node:child_process';
 import {Engine,pythonRound4} from '../dist/engine.js';
-import {favoriteSettings,islandFavorites,validateFavorites} from '../dist/favorite-berries.js';
+import {favoriteSettings,islandFavorites,validateFavorites,favoriteSkillLevelBonus} from '../dist/favorite-berries.js';
 import {createLevelPreview} from '../dist/level-preview.js';
 import {calculatedStats} from '../dist/pokemon-stats.js';
 import {skillLevelOptions,resolveMainSkill,MEW_SKILLS} from '../dist/main-skills.js';
@@ -21,7 +21,7 @@ for(const [name,factor]of [['SCEPTILE',.9],['RAICHU',1],['GARDEVOIR',1],['CHARIZ
  for(const forecast of view.forecasts)assert.equal(forecast.frequencySeconds,interval(forecast.level));
  if(factor!==1){assert.equal(view.build.displayedFrequencySeconds,calculatedStats(catalog,view.build).frequencySeconds);assert.equal(view.build.frequencySource,'calculated')}
  else assert.equal(view.build.displayedFrequencySeconds,3000);
- assert.deepEqual(view.current.ratings,engine.analyze(view.build).current.ratings);
+ assert.deepEqual(view.current.ratings,engine.analyze(view.build,{mainSkillLevelBonus:favoriteSkillLevelBonus(view.build,catalog,ex)}).current.ratings);
  const temporary=preview(saved,80,{full:true,favoriteBerries:ex});assert.equal(temporary.current.frequencySeconds,interval(80));
  assert.equal(JSON.stringify(saved),snapshot);assert.equal(preview(saved,null),saved);
  assert.equal(preview(saved,null,{favoriteBerries:plain}).build.displayedFrequencySeconds,3000);

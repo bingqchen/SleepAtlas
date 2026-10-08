@@ -22,7 +22,7 @@ for(const [island,berries] of Object.entries(expectedIslands)){
   assert.throws(()=>validateFavorites({...config,multiplier:2.4},catalog));assert.throws(()=>validateFavorites({...config,berries:[]},catalog));
 }
 for(const island of ['greengrass','greengrass-expert','cyan-expert']){
-  const speeds=island==='greengrass-expert'?{favoriteSpeed:10,nonFavoriteSpeed:-15}:island==='cyan-expert'?{favoriteSpeed:20,nonFavoriteSpeed:-35}:{};
+  const speeds=island==='greengrass-expert'?{favoriteSpeed:10,nonFavoriteSpeed:-15,mainSkillLevelBonus:1}:island==='cyan-expert'?{favoriteSpeed:20,nonFavoriteSpeed:-35,mainSkillLevelBonus:1}:{};
   assert.deepEqual(islandFavorites(island),{berries:[],multiplier:2,island,...speeds});
   assert.deepEqual(validateFavorites({...favorites,island},catalog),{...favorites,island,...speeds});
 }
@@ -80,7 +80,7 @@ assert.deepEqual(node('favorite-berries-form').elements.map(c=>c.disabled),[fals
 const afterReload=createLevelPreview(catalog)(before.analysis,null,{full:true,favoriteBerries:reloaded});
 assert.equal(afterReload.modelVersion,MODEL_VERSION);close(afterReload.current.berryStrength,original.current.berryStrength*1.2);
 assert.deepEqual(await api('/api/pokemon/'+id),before);assert.deepEqual((await api('/api/backup')).pokemon,backup.pokemon);
-for(const configuration of [islandFavorites('cyan'),{...favorites,island:'greengrass'},islandFavorites('greengrass')]){
+for(const configuration of [islandFavorites('cyan'),{...favorites,island:'greengrass'},islandFavorites('greengrass'),{...favorites,island:'custom',mainSkillLevelBonus:1}]){
   ctx.configuration=configuration;await vm.runInContext('applyFavoriteBerries(configuration)',ctx);
   assert.deepEqual(validateFavorites(await read(),catalog),configuration,'Island and manual settings survive storage/reload');
   const view=createLevelPreview(catalog)(before.analysis,null,{full:true,favoriteBerries:await read()});

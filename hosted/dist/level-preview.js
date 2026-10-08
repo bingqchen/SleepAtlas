@@ -1,6 +1,6 @@
 import {Engine} from './engine.js';
 import {calculatedStats,updatedCarrySize} from './pokemon-stats.js';
-import {favoriteSettings} from './favorite-berries.js';
+import {favoriteSettings,favoriteSkillLevelBonus} from './favorite-berries.js';
 
 export const TEMPORARY_LEVELS=[25,30,50,60,70,80];
 // Only derived views live here. Neither the saved analysis nor its build is
@@ -30,7 +30,8 @@ export function createLevelPreview(catalog){
     }
     // Lists only need output totals. Calculate the reference population when
     // opening details or sorting by rating, then reuse it across filter changes.
-    if(full)return entry.full??=engine.analyze(entry.build,{berryTeam});
-    return entry.full??(entry.summary??={build:entry.build,current:engine.calculate(entry.build,entry.build.level,{berryTeam})});
+    const context={berryTeam,mainSkillLevelBonus:favoriteSkillLevelBonus(entry.build,catalog,favoriteBerries)};
+    if(full)return entry.full??=engine.analyze(entry.build,context);
+    return entry.full??(entry.summary??={build:entry.build,current:engine.calculate(entry.build,entry.build.level,context)});
   };
 }
