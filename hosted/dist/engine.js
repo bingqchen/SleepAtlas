@@ -2,10 +2,16 @@ import {calculateRP} from './rp.js';
 import {MEW_SKILLS,resolveMainSkill} from './main-skills.js';
 // Base formulas ported from atlas-1.3, with selectable favorite berry bonuses.
 // Reference samples are identical to the Python model.
-export const MODEL_VERSION='atlas-1.9-web';
+export const MODEL_VERSION='atlas-1.10-web';
 export const favoriteMultiplier=settings=>settings.favoriteBerry?(settings.favoriteBerryMultiplier??2):1;
 export const berryValueAtLevel=(berry,level)=>Math.floor(Math.max(berry.value+level-1,berry.value*1.025**(level-1))+.5);
 export const hasTeamBerryBurst=skill=>skill?.name==='Berry Burst'&&!skill.modifierName;
+export const hasTeamBerrySkill=skill=>hasTeamBerryBurst(skill)||skill?.modifierName==='Draco Meteor';
+// Neroli's Lab 74e5068, berry-burst-draco-meteor.ts. Rows count unique
+// Dragon species including the caster; columns are main skill levels 1–6.
+const DRACO_OWN=[[12,21,29,38,43,48],[14,24,29,39,44,50],[18,29,35,42,48,55],[18,30,37,45,49,55],[20,33,41,49,53,58]];
+const DRACO_TEAM=[[1,1,1,1,2,3],[1,1,2,2,3,4],[1,1,2,3,4,4],[2,2,3,4,5,5],[2,2,3,4,5,5]];
+const DRACO_LATIAS=[2,4,6,8,9,10];
 export function ownSkillBerries(skill,level){
   // Solo baselines from the pinned Neroli's Lab skill definitions. Team bonuses
   // and Disguise's sleep-reset Great Success are deliberately excluded.
@@ -85,9 +91,9 @@ export class Engine{
     for(const duration of intervals){const helps=duration*helpsPerHour,effective=Math.min(helps,carry/itemsPerHelp);normalHelps+=effective;overflow+=helps-effective;triggers+=skillExpectation(effective,skillRate,['skill','all'].includes(p.specialty)?2:1)}
     const quantities=new Map([...possible.keys()].map(k=>[k,0]));for(const slot of slots){const name=slot.ingredient.name;quantities.set(name,quantities.get(name)+normalHelps*ingRate/slots.length*slot.amount)}
     const {skill,label:skillLabel,effectiveLevel}=resolveMainSkill(this.catalog,build,{levelBonus:mainSkillLevelBonus});
-    const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount,skillBerriesPerTrigger=ownSkillBerries(skill,effectiveLevel),ownSkillBerryCount=triggers*skillBerriesPerTrigger;
+    const gatheredBerryCount=(normalHelps*(1-ingRate)+overflow)*berryAmount;
     const berryValue=berryValueAtLevel(p.berry,level),area=1+settings.areaBonus/100,ownValue=berryValue*favoriteMultiplier(settings);
-    const teamBerrySkill=hasTeamBerryBurst(skill),teamBerryMode=teamBerrySkill?(berryTeam===null?'automatic':'selected'):null;
+    const teamBerrySkill=hasTeamBerrySkill(skill),teamBerryMode=teamBerrySkill?(berryTeam===null?'automatic':'selected'):null;
     let teammates=[];
     if(teamBerrySkill){
       if(berryTeam===null)teammates=Array.from({length:4},()=>({species:build.species,level,favoriteMultiplier:favoriteMultiplier(settings)}));
@@ -99,13 +105,18 @@ export class Engine{
         });
       }
     }
-    const teamAmount=teamBerrySkill?skill.teamBerryAmounts[effectiveLevel-1]:0,teamBerriesPerTrigger=teamAmount*teammates.length;
+    const draco=skill.modifierName==='Draco Meteor',members=[p,...teammates.map(m=>this.species.get(m.species))];
+    const uniqueDragonSpecies=draco?new Set(members.filter(m=>m.berry.type==='dragon').map(m=>m.name)).size:0;
+    const latiasBonusBerries=draco&&members.some(m=>m.name==='LATIAS')?DRACO_LATIAS[effectiveLevel-1]:0;
+    const skillBerriesPerTrigger=draco?DRACO_OWN[Math.max(0,uniqueDragonSpecies-1)][effectiveLevel-1]+latiasBonusBerries:ownSkillBerries(skill,effectiveLevel);
+    const ownSkillBerryCount=triggers*skillBerriesPerTrigger;
+    const teamAmount=draco?DRACO_TEAM[Math.max(0,uniqueDragonSpecies-1)][effectiveLevel-1]:teamBerrySkill?skill.teamBerryAmounts[effectiveLevel-1]:0,teamBerriesPerTrigger=teamAmount*teammates.length;
     const teamSkillBerryCount=triggers*teamBerriesPerTrigger,teamSkillBerryStrength=triggers*teamAmount*teammates.reduce((sum,m)=>sum+berryValueAtLevel(this.species.get(m.species).berry,m.level)*m.favoriteMultiplier,0)*area;
     const ownSkillBerryStrength=ownSkillBerryCount*ownValue*area,skillBerryCount=ownSkillBerryCount+teamSkillBerryCount,skillBerryStrength=ownSkillBerryStrength+teamSkillBerryStrength;
     const berries=gatheredBerryCount+skillBerryCount,berryStrength=gatheredBerryCount*ownValue*area+skillBerryStrength,ingredientStrength=[...possible].reduce((s,[k,v])=>s+quantities.get(k)*v.value,0)*area;
     const index=effectiveLevel-1,direct=skill.strengthAmountsMean||skill.strengthAmounts,supported=!!direct&&!skill.modifierName;
     const skillStrength=supported?triggers*direct[index]*area:0,randomIngredients=skill.name==='Ingredient Magnet S'&&!skill.modifierName?triggers*skill.ingredientAmounts[index]:0;
-    return {level,skillTriggerMultiplier,mainSkillLevel:effectiveLevel,mainSkillLevelBonus:effectiveLevel-resolveMainSkill(this.catalog,build).effectiveLevel,rp:calculateRP(this.catalog,build,level),skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
+    return {level,skillTriggerMultiplier,mainSkillLevel:effectiveLevel,mainSkillLevelBonus:effectiveLevel-resolveMainSkill(this.catalog,build).effectiveLevel,rp:calculateRP(this.catalog,build,level),skillTriggers:triggers,strength:berryStrength+ingredientStrength+skillStrength,ingredientCount:[...quantities.values()].reduce((a,b)=>a+b,0),randomIngredients,berryCount:berries,gatheredBerryCount,skillBerryCount,skillBerryStrength,skillBerriesPerTrigger,ownSkillBerryCount,ownSkillBerryStrength,teamSkillBerryCount,teamSkillBerryStrength,teamBerriesPerTrigger,teamBerryMode,uniqueDragonSpecies,latiasBonusBerries,teamMemberCount:teammates.length,berrySkill:skillBerriesPerTrigger>0,berryStrength,ingredientStrength,skillStrength,frequencySeconds:frequency,ingredientRate:ingRate,skillRate,activeSubskills:active.sort(),ingredients:[...quantities].map(([name,count])=>({name,longName:possible.get(name).longName,count,strength:count*possible.get(name).value*area})),supportSkillExcluded:!supported||!['Charge Strength S','Charge Strength M'].includes(skill.name),normalHelps,sneakyHelps:overflow};
   }
   analyze(raw,context={}){
     const build=this.validate(raw),current=this.calculate(build,build.level,context),p=this.species.get(build.species),keys=['skillTriggers','strength','ingredientCount','berryCount'];
@@ -127,7 +138,7 @@ export class Engine{
     if(current.berrySkill){
       warnings.push(current.teamBerryMode?`${skillLabel}: ${current.skillBerriesPerTrigger} own + ${current.teamBerriesPerTrigger} teammate berries per trigger. ${current.teamBerryMode==='automatic'?'Automatic estimate assumes four teammates at this Pokémon’s level, berry type, and favorite bonus.':'Uses the selected teammates’ levels, berry types, and favorite bonuses; empty or missing slots contribute zero.'}`:`${skillLabel}: counts ${current.skillBerriesPerTrigger} of this Pokémon’s own berries per trigger. Teammates’ berries and other skill effects are excluded.`);
       if(p.skill.modifierName==='Disguise')warnings.push('Disguise uses normal bursts; the sleep-reset Great Success bonus is excluded.');
-      if(p.skill.modifierName==='Draco Meteor')warnings.push('Draco Meteor assumes one Dragon species and no Latias bonus.');
+      if(skill.modifierName==='Draco Meteor')warnings.push(`Draco Meteor: ${current.uniqueDragonSpecies} different Dragon species, including this Pokémon. ${current.latiasBonusBerries?`Latias adds ${current.latiasBonusBerries} own berries per trigger.`:'No Latias bonus.'} Duplicate species count once. ${current.teamBerryMode==='automatic'?'Automatic teammates use this Pokémon’s species; select your team to include its Dragon and Latias bonuses.':''}`);
       if(p.skill.modifierName==='Lunar Blessing')warnings.push('Lunar Blessing assumes one Psychic species; energy support is excluded.');
     }else if(current.supportSkillExcluded)warnings.push(`${skillLabel} triggers are estimated, but its indirect/team effects are excluded from strength.`);
     if(current.randomIngredients)warnings.push('Ingredient Magnet bonus items are shown separately. Their types and strength depend on your unlocked ingredients.');

@@ -24,7 +24,7 @@ for(let size=0;size<=4;size++){
 const actual=engine.calculate(base,60,{berryTeam:mixed});close(actual.teamSkillBerryStrength,actual.skillTriggers*5*teamValue*1.5);
 const noArea=engine.calculate({...base,settings:{...base.settings,areaBonus:0}},60,{berryTeam:mixed});close(actual.teamSkillBerryStrength,noArea.teamSkillBerryStrength*1.5);
 for(const bad of [{},Array(5).fill(mixed[0]),[{...mixed[0],level:0}],[{...mixed[0],favoriteMultiplier:4}],[{...mixed[0],species:'UNKNOWN'}]])assert.throws(()=>engine.calculate(base,60,{berryTeam:bad}));
-for(const name of ['MIMIKYU','LATIOS','CRESSELIA','GARDEVOIR','MEWTWO'])assert.deepEqual(engine.calculate(make(name)),engine.calculate(make(name),60,{berryTeam:mixed}),'Other skills remain unchanged');
+for(const name of ['MIMIKYU','CRESSELIA','GARDEVOIR','MEWTWO'])assert.deepEqual(engine.calculate(make(name)),engine.calculate(make(name),60,{berryTeam:mixed}),'Other skills remain unchanged');
 const parity=[];
 for(const p of catalog.species.filter(p=>hasTeamBerryBurst(p.skill)))for(let skillLevel=1;skillLevel<=6;skillLevel++){
  const b={...make(p.name),skillLevel},c=engine.calculate(b);close(c.skillBerryCount,c.skillTriggers*[15,22,29,36,43,50][skillLevel-1]);parity.push(b);

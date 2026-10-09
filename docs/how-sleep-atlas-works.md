@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v45**, using calculation model `atlas-1.9-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v46**, using calculation model `atlas-1.10-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -103,11 +103,11 @@ Skill probability uses the species rate, nature, and active Skill Trigger subski
 
 Berry specialists and all-rounders start with two berries per berry help; other specialties start with one. Active Berry Finding S adds one. Berry value grows with level using the larger of the catalog’s linear and exponential growth formulas.
 
-For supported berry-producing skills, total berries also include expected activations multiplied by the Pokémon’s own berries per activation. Berry Burst, Disguise, Draco Meteor, and Lunar Blessing use this treatment. Ordinary Berry Burst also includes teammate berries, as described below; other team-dependent skills retain solo assumptions. The collection shows berry count for these builds instead of skill count. Details still show both metrics.
+For supported berry-producing skills, total berries also include expected activations multiplied by the Pokémon’s own berries per activation. Berry Burst, Disguise, Draco Meteor, and Lunar Blessing use this treatment. Berry Burst and Draco Meteor also include teammate berries, as described below; other team-dependent skills retain solo assumptions. The collection shows berry count for these builds instead of skill count. Details still show both metrics.
 
 ```text
 Total berries = gathered berries + modeled own berries from skills
-              + modeled Berry Burst teammate berries
+              + modeled Berry Burst / Draco Meteor teammate berries
 
 Total raw strength = berry strength
                    + gathered ingredients at their base values
@@ -118,7 +118,7 @@ Favorite berry multipliers affect berry strength, including modeled skill berrie
 
 Mew’s selected main skill is saved in its build. Supported selected effects use the same calculation rules, while Mew retains its own species data. Its rates are provisional; the base skill chance defaults to a 4% assumption and is editable. **Berry Juice is not currently a selectable Mew effect or a modeled berry source.**
 
-### Berry Burst teammates
+### Berry Burst and Draco Meteor teammates
 
 Ordinary **Berry Burst**, including Mew’s selected effect, assumes four teammates with the skill user’s berry type, level, and favorite bonus by default. At skill level 6 it produces **30 own + 20 teammate berries per activation**. This estimates a full team; it does not claim to know your actual teammates.
 
@@ -134,7 +134,9 @@ These are berries created by this Pokémon’s skill; teammates’ ordinary prod
 
 Temporary collection levels and island favorites also apply to the selected teammates. Future-level forecasts hold selected teammates at their current preview levels while advancing the skill user; automatic teammates follow the skill user’s projected level. Editing or evolving a selected teammate updates the estimate. Teammate choices are remembered for each Pokémon on this device, independently of saved builds and analysis history, and are excluded from JSON backups. The original Mac/Python calculator uses the automatic estimate; the teammate selector is in the hosted app.
 
-The berry quantities and receiver-specific values follow the pinned [Neroli’s Lab Berry Burst implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/backend/src/services/simulation-service/team-simulator/skill-state/skill-effects/berry-burst/berry-burst-effect.ts). Disguise, Draco Meteor, Lunar Blessing, and Berry Juice are unchanged.
+The berry quantities and receiver-specific values follow the pinned [Neroli’s Lab Berry Burst implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/backend/src/services/simulation-service/team-simulator/skill-state/skill-effects/berry-burst/berry-burst-effect.ts). Disguise, Lunar Blessing, and Berry Juice are unchanged.
+
+For **Draco Meteor**, use the same **Choose teammates** button in Pokémon details. The model counts different Dragon species including Latios; duplicates count once, but every selected teammate receives its berry reward. Latias counts as a Dragon species and adds a bonus to Latios’s own berries. At skill level 6, Latios alone produces 48 berries; Latios with Latias produces 60 own + 4 teammate berries. Five different Dragons including Latias produce 68 own + 20 teammate berries. Each receiver uses its own level and favorite multiplier. Automatic mode assumes four teammates of the caster’s species and therefore one unique Dragon species, with no Latias bonus. Empty or deleted teammates add neither berries nor species bonuses. The quantities follow the pinned [Neroli’s Lab Draco Meteor implementation](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/types/mainskill/mainskills/berry-burst/berry-burst-draco-meteor.ts); they are community model data, not an official numeric specification.
 
 ### Island helping speed
 
@@ -156,7 +158,7 @@ The [official Expert Mode announcement](https://www.pokemonsleep.net/en/news/323
 
 ### What the estimates leave out
 
-Raw strength excludes recipe multipliers, critical meals, most support effects, teammate berries from skills other than ordinary Berry Burst, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, other event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
+Raw strength excludes recipe multipliers, critical meals, most support effects, teammate berries from skills other than Berry Burst and Draco Meteor, Berry Zone strength boosts, and random ingredient skill strength. The model does not simulate energy recovery throughout the day, skill pity, full team synergy, camp tickets, other event bonuses, or ribbon effects automatically. A recorded carry value can still include an actual bonus.
 
 These estimates support consistent comparisons under shared assumptions. They are not exact forecasts of Snorlax’s final strength.
 

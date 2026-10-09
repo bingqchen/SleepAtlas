@@ -9,7 +9,7 @@ for(const [name,amounts] of Object.entries({SCEPTILE:[11,14,21,24,27,30],MIMIKYU
  for(let i=0;i<6;i++){
   const b=make(name,i+1),c=engine.calculate(b),p=engine.species.get(name);
   assert.equal(ownSkillBerries(p.skill,i+1),amounts[i]);
-  const total=amounts[i]+(name==='SCEPTILE'?4*p.skill.teamBerryAmounts[i]:0);
+  const total=amounts[i]+(name==='SCEPTILE'?4*p.skill.teamBerryAmounts[i]:name==='LATIOS'?4*[1,1,1,1,2,3][i]:0);
   close(c.ownSkillBerryCount,c.skillTriggers*amounts[i]);close(c.skillBerryCount,c.skillTriggers*total);
   close(c.berryCount,c.gatheredBerryCount+c.skillBerryCount);
   const value=Math.floor(Math.max(p.berry.value+b.level-1,p.berry.value*1.025**(b.level-1))+.5);
