@@ -224,3 +224,9 @@ All new uploads create one entry per photo; the grouping selector is removed. A 
 The editor shows only its current problem photo, at full content width on phones (up to 440px on desktop), before the field warnings. Tapping it opens a full-screen scrollable viewer with a 2× zoom toggle and Back to review. No new screenshot assets or network service are required.
 
 Validation: import-batch covers legacy migration and idempotence; `node tests/import-migration.mjs` covers stored-blob recovery, interrupted-save receipts, awaited migration persistence and failures. Mobile browser QA confirmed two selected files produce Review photo 1 of 2 with one large image, Mewtwo auto-save, and working enlargement/zoom.
+
+## Sunshine Picnic skin (Reader v41)
+
+The collection, details, editor, menus, and supporting dialogs use the selected Sunshine Picnic theme: a yellow gingham masthead, cream paper, dark green type, pale green table headings, alternating cream rows, and yellow primary actions. The moon app icon, table density, interaction flow, and saved data are preserved. A decorative sun-and-leaves asset is bundled locally and included in the offline shell. Manifest and browser theme colors match the new surface.
+
+Validation: mobile and desktop browser checks cover collection rows, menus, detail/edit screens, and narrow layouts. The offline suite verifies all real shell assets, including the new decoration, remain downloadable and available without a network.

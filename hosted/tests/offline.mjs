@@ -13,7 +13,7 @@ function cacheStorage(){
     return {async match(input){return data.get(key(input))?.clone()},async put(input,response){if(key(input)===quotaPath)throw new DOMException('quota','QuotaExceededError');data.set(key(input),response.clone())},async delete(input){return data.delete(key(input))}};
   }};
 }
-function worker(caches=cacheStorage(),version='v40'){
+function worker(caches=cacheStorage(),version='v41'){
   const handlers={},requests=[];let failure=null,offline=false,claimed=false;
   const fetch=async(input,options)=>{
     const path=key(input);requests.push(path);if(offline)throw TypeError('Offline');
@@ -30,7 +30,7 @@ function worker(caches=cacheStorage(),version='v40'){
     return new Response(fs.readFileSync(file),{headers:{'content-type':type}});
   };
   const context=vm.createContext({caches,fetch,Response,URL,AbortController,setTimeout,clearTimeout,self:{location:{origin},clients:{claim:async()=>{claimed=true}},skipWaiting:async()=>{},addEventListener:(type,handler)=>{handlers[type]=handler}}});
-  vm.runInContext(source.replace("VERSION='v40'",`VERSION='${version}'`),context);
+  vm.runInContext(source.replace("VERSION='v41'",`VERSION='${version}'`),context);
   const files=vm.runInContext('[...FILES]',context),ocr=vm.runInContext('[...OCR]',context);
   const lifecycle=type=>{let job;handlers[type]({waitUntil:p=>{job=p}});assert.ok(job,'waitUntil is called synchronously');return job};
   function message(type){const messages=[];let job,closed=false;handlers.message({data:{type},ports:[{postMessage:m=>messages.push(structuredClone(m)),close:()=>{closed=true}}],waitUntil:p=>{job=p}});assert.ok(job);return {messages,done:job.then(()=>{assert.ok(closed);return messages.at(-1)})}}
@@ -62,18 +62,18 @@ assert.equal((await w.status()).ready,true);
 const app=await (await w.fetchEvent('/app.js')).text();assert.match(app,/setupOffline/);
 
 // A new app version rebuilds the shell but retains the separately pinned OCR cache.
-w.setOffline(false);const upgraded=worker(w.caches,'v41');await upgraded.lifecycle('install');await upgraded.lifecycle('activate');
+w.setOffline(false);const upgraded=worker(w.caches,'v42');await upgraded.lifecycle('install');await upgraded.lifecycle('activate');
 assert.equal((await upgraded.status()).ready,false);
-assert.ok((await upgraded.caches.keys()).includes('sleep-atlas-hosted-v40'),'Keep the previous cache until the new download succeeds');
+assert.ok((await upgraded.caches.keys()).includes('sleep-atlas-hosted-v41'),'Keep the previous cache until the new download succeeds');
 upgraded.setOffline(true);
 for(const path of upgraded.files)assert.ok((await upgraded.fetchEvent(path)).ok,'An update keeps the previous offline download usable: '+path);
 upgraded.setOffline(false);
 assert.equal((await upgraded.download().done).ready,true);
-assert.ok((await upgraded.caches.keys()).includes('sleep-atlas-hosted-v41'));
-assert.ok(!(await upgraded.caches.keys()).includes('sleep-atlas-hosted-v40'));
+assert.ok((await upgraded.caches.keys()).includes('sleep-atlas-hosted-v42'));
+assert.ok(!(await upgraded.caches.keys()).includes('sleep-atlas-hosted-v41'));
 assert.ok(upgraded.ocr.every(path=>!upgraded.requests.includes(path)));
 await w.download().done;
-assert.ok((await upgraded.caches.keys()).includes('sleep-atlas-hosted-v41'),'An older worker cannot delete a newer completed download');
+assert.ok((await upgraded.caches.keys()).includes('sleep-atlas-hosted-v42'),'An older worker cannot delete a newer completed download');
 
 for(const kind of ['network','abort','html','redirect','forbidden','quota']){
   const bad=worker();await bad.lifecycle('install');
@@ -100,7 +100,7 @@ await assert.rejects(offlineRequest({postMessage(){}},'atlas:offline-status',und
 await assert.rejects(offlineRequest({postMessage:(_,ports)=>{ports[0].postMessage({kind:'done',version:'v26',ready:true});ports[0].close()}},'atlas:offline-status'),/update is ready/);
 await assert.rejects(offlineRequest({postMessage:(_,ports)=>{ports[0].postMessage({kind:'error',message:'Storage full'});ports[0].close()}},'atlas:offline-status'),/Storage full/);
 let progress=0;
-const ready=await offlineRequest({postMessage:(_,ports)=>{ports[0].postMessage({kind:'progress',version:'v40',complete:1,total:2});ports[0].postMessage({kind:'done',version:'v40',ready:true});ports[0].close()}},'atlas:offline-download',()=>progress++);
+const ready=await offlineRequest({postMessage:(_,ports)=>{ports[0].postMessage({kind:'progress',version:'v41',complete:1,total:2});ports[0].postMessage({kind:'done',version:'v41',ready:true});ports[0].close()}},'atlas:offline-download',()=>progress++);
 assert.equal(progress,1);assert.equal(ready.ready,true);
 console.log('Passed: real offline asset coverage, readiness, concurrent download, retry/quota/auth failures, offline fetches, query URLs, update retention and bounded UI messages.');
 
