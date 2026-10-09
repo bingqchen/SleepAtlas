@@ -268,3 +268,12 @@ Composition/framing: Center the crescent moon and stars as one balanced compact 
 Scene/backdrop: Full-bleed opaque pale yellow and warm cream gingham, subtle and low contrast. Continue the check pattern to all four square edges.
 Constraints: Remove every sun ray and both leaves from the reference. No sun disc, no sun rays, no leaves, no extra objects besides one crescent moon and three stars. True square, desired 1024 × 1024. Opaque background; no transparency. No text, lettering, initials, watermark, border, UI, device mockup, or pre-rounded corners.
 ```
+
+
+## Level corroboration and Blissey recovery (Reader v44)
+
+Level confidence now uses the header’s Lv. token and digits independently of a custom nickname. An existing low-confidence level can also pass when a verified portrait, confident nature/frequency, and all five confidently placed subskills yield exactly one matching level among 1–100, within one second of the displayed interval. It reuses `calculatedStats` with island speed fixed to 1 and never infers a missing level, fits unknown modifiers, or clears conflicts. Detected ribbon/mint/temporary-effect text disables corroboration. The check is supporting evidence: unseen modifiers can alias another level. Daily production calculations are unchanged.
+
+When full-image OCR misses both first-row subskills, a bounded retry planner uses the three lower cards plus recognized main-skill and nature anchors to crop those two cells. Only the original strict grid assigns slots after OCR recovery. The submitted Blissey correctly matches its portrait and Egg ingredients; targeted OCR recovers Inventory Up L and Skill Trigger M. Its Bashful Lv.61 frequency is 2728 seconds (45′28″), so the complete photo qualifies for auto-save.
+
+Validation: `node tests/level-verification.mjs` checks word confidence, level/subskill unlocks, unique matching, tolerance ambiguity, missing/conflicting evidence and modifier rejection. `node tests/blissey-regression.mjs` uses sanitized actual OCR and compact image descriptors to cover portrait/ingredients, targeted recovery, and invalid layouts. No full user screenshot is checked in.

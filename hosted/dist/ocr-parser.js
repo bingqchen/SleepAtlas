@@ -58,6 +58,24 @@ export function subskillGrid(image,catalog){
   const cells=UNLOCKS.map((level,i)=>({level,slot:i,x:i%2?.53:.075,y:centers[Math.floor(i/2)]-.014,w:.40,h:.028,hit:rows[Math.floor(i/2)].find(h=>(h.line.x>=.5)===(i%2===1))}));
   return cells;
 }
+// Crop planning only: when the first two cards vanish from whole-screen OCR,
+// use the two lower rows and surrounding panels to retry that missing row.
+// parseOCR never uses this inferred layout to assign subskills; recovered text
+// must make the ordinary geometric grid valid before it can populate slots.
+export function subskillRetryGrid(image,catalog){
+  const complete=subskillGrid(image,catalog);if(complete)return complete;
+  const hits=subskillHits(image.lines,catalog);
+  if(hits.length!==3||hits.some(h=>h.line.confidence<.75))return null;
+  const sorted=[...hits].sort((a,b)=>cy(a.line)-cy(b.line)),bottom=sorted[2];
+  if(Math.abs(cy(sorted[0].line)-cy(sorted[1].line))>=.018||new Set(sorted.slice(0,2).map(h=>h.line.x>=.5)).size!==2||bottom.line.x>=.5)return null;
+  const middle=(cy(sorted[0].line)+cy(sorted[1].line))/2,last=cy(bottom.line),gap=last-middle,first=middle-gap;
+  if(gap<.04||gap>.11||first<.3||last>.82)return null;
+  const heading=image.lines.find(l=>l.confidence>=.75&&/main\s+skill.*sub\s*skills/i.test(l.text)&&l.y<first);
+  const main=image.lines.find(l=>l.confidence>=.75&&heading&&l.y>heading.y&&l.y<first&&catalog.species.some(p=>has(l.text,p.skillLabel)));
+  const nature=image.lines.find(l=>l.confidence>=.75&&l.y>last&&catalog.natures.some(n=>has(l.text,n.name)));
+  if(!main||!nature||(first-cy(main))/gap<1.2||(first-cy(main))/gap>2.6||(cy(nature)-last)/gap<1.6||(cy(nature)-last)/gap>2.6)return null;
+  return UNLOCKS.map((level,i)=>({level,slot:i,x:i%2?.53:.075,y:[first,middle,last][Math.floor(i/2)]-.014,w:.40,h:.028,hit:i<2?undefined:i===4?bottom:sorted.slice(0,2).find(h=>(h.line.x>=.5)===(i%2===1))}));
+}
 export function parseOCR(images,catalog){
   const lines=images.flatMap(i=>i.lines),text=lines.map(l=>l.text).join('\n'),fields={},warnings=[],detected=new Set();
   const evidence={level:[],nature:[],skillLevel:[],carrySize:[],subskills:[[],[],[],[],[]]};

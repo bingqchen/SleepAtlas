@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v38, October 8, 2026**, using calculation model `atlas-1.9-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v44**, using calculation model `atlas-1.9-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -61,13 +61,21 @@ The hosted app uses **Tesseract.js**, an English text reader running in the brow
 
 1. **Read the text.** The app enlarges small screenshots and reads both the original colors and a high-contrast version. Text positions help distinguish the Pokémon’s level from ingredient or subskill unlock labels.
 2. **Identify the species.** It looks for a catalog species name and separately compares the portrait against normal and shiny references. A custom nickname can therefore still be recognized by its picture. If text and picture disagree, the app asks for a manual species choice.
-3. **Place the subskills.** It uses labels, word positions, and the two-column grid to assign slots at levels 10, 25, 50, 70, and 80. A mostly readable grid can trigger another text-reading pass over the missing cell. Recognizing a skill name without locating its slot is not enough to fill an arbitrary dropdown.
+3. **Place the subskills.** It uses labels, word positions, and the two-column grid to assign slots at levels 10, 25, 50, 70, and 80. A mostly readable grid can trigger another text-reading pass over a missing cell. If both first-row cards disappear, the reader can retry them when the lower rows and surrounding skill/nature panels establish their positions. The recovered text must then pass the ordinary grid checks. Recognizing a skill name without locating its slot is not enough to fill an arbitrary dropdown.
 4. **Identify ingredients.** The second and third ingredient icons are compared with normal and faded references. Matches must be sufficiently clear and valid for that species, slot, and quantity when readable. The first ingredient uses the species’ fixed catalog option.
 5. **Keep uncertain values editable.** Missing, conflicting, or ambiguous results are left for review. Non-English nickname text is not automatically filled, even when the species is identified from its portrait.
 
 If recognition fails, first check the app version and species list. For a supported species, use a clearer detail screenshot with the header, frequency, ingredient icons, and subskill grid visible. Selecting the species manually can resolve ingredient matches that require species context. Photos are never combined into a single reading. Resume an unfinished import from Reader v39 to separate any previously grouped photos and read them again independently. Already completed saves are preserved. Any edits made to the old combined review are retained in the temporary queue for recovery, but are not copied onto separate Pokémon.
 
 An unreadable level number can still locate the portrait when its “Lv.” prefix is visible. For a close but ambiguous portrait, the reader can confirm the global best match when a clearly read main skill, both later ingredient icons, and carry capacity leave exactly one catalog species. It never substitutes a lower-ranked portrait candidate. The reported Mareep photo uses this check; its unreadable level still requires manual entry.
+
+### Confirming a detected level
+
+The reader checks confidence on the level digits separately from the nickname, which can lower the confidence of the whole header line. A less confident but readable level can also be corroborated by helping frequency: the species portrait, nature, all five subskills, and displayed interval must be confidently recognized and agree across OCR passes. Using species base frequency, nature, and active Helping Speed subskills, it checks levels 1–100 and accepts the OCR level only if it is the sole match within one second. Collection and island settings do not affect this check.
+
+For the reported Blissey, Bashful has no speed modifier and both speed subskills are still locked at level 61. The calculation is `floor(3100 × (1 − 0.002 × 60)) = 2728` seconds, exactly **45′28″**. Retrying its missing first subskill row lets this complete screenshot save automatically.
+
+This corroborates a readable number; it does not invent an unreadable level or resolve conflicting readings. Known ribbon, mint, or other temporary-effect text disables the frequency check. Unshown effects can still affect a Pokémon’s stats, so frequency is supporting evidence rather than an independent proof of its level. Uncertain imports remain editable.
 
 ## How daily estimates are calculated
 

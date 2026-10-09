@@ -1,6 +1,6 @@
 import {initialize,savePictures} from './local-api.js';
 import {assessImport} from './import-review.js';
-import {parseOCR,subskillGrid} from './ocr-parser.js';
+import {parseOCR,subskillRetryGrid} from './ocr-parser.js';
 import {identifySprite,contextualSpriteMatch} from './sprite-matcher.js';
 import {identifyIngredients,resolveIngredients} from './ingredient-matcher.js';
 export {parseOCR} from './ocr-parser.js';
@@ -30,7 +30,7 @@ async function recognize(worker,canvas){
   }finally{if(input!==canvas)input.width=input.height=1}
 }
 async function readMissingCells(worker,canvas,lines,catalog,progress){
-  const grid=subskillGrid({lines},catalog);if(!grid||grid.every(c=>c.hit))return;
+  const grid=subskillRetryGrid({lines},catalog);if(!grid||grid.every(c=>c.hit))return;
   await worker.setParameters({tessedit_pageseg_mode:'7'});
   try{for(const cell of grid.filter(c=>!c.hit)){
     progress(`Reading the Lv. ${cell.level} subskill…`);
