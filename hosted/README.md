@@ -302,3 +302,7 @@ Source: [Neroli's Lab Draco Meteor tables](https://github.com/nerolis-lab/neroli
 The repository's Capacitor iOS target stages this directory's `dist` as its canonical application. `platform.js` keeps the website's upload and JSON download controls while selecting native screenshot picking and sharing in the bundled app. The native bridge is injected only into the generated iOS copy; it is not published on this website. Native builds skip the PWA install, service-worker and offline-download flow because assets ship inside the app. Drafts also flush when the app becomes hidden.
 
 The web release retains its deployment and offline-download workflow. The v47 worker includes the platform module and can still cold-load a complete v46 offline download while an update is incomplete.
+
+## Reader v48 · web icon
+
+The web favicon, Apple touch icon and PWA icons now have a small green WEB badge below the sleeping moon. Updated icon URLs and the service-worker version refresh the web assets. The native Xcode app-icon asset is unchanged. The built-in image tool was asked to preserve the moon, stars, yellow gingham background and composition and add only a small green pill with cream-white WEB lettering below the moon. Final sizes are 180, 192 and 512 pixels, with a 128-pixel SVG favicon image.

@@ -1,4 +1,4 @@
-const EXPECTED_VERSION='v47';
+const EXPECTED_VERSION='v48';
 export function offlineRequest(worker,type,onProgress=()=>{},timeout=65000){
   return new Promise((resolve,reject)=>{
     const channel=new MessageChannel();let timer;
