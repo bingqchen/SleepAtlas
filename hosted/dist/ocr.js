@@ -64,6 +64,10 @@ export async function readScreenshots(files,progress,sharedWorker=null,pictureId
       results.push({lines,passes:[rawLines,contrastLines]});pictures.push({id:pictureIds[index]||crypto.randomUUID(),pendingReview:true,filename:file.name,mime:file.type||'image/png',blob:file,text:lines,createdAt:new Date().toISOString()});canvas.width=canvas.height=1;index++;
     }
     const parsed=parseOCR(results,catalog),unique=[...new Set(matches)],issues=[];
+    // These are loading failures, not ambiguous artwork. Put the explanation
+    // in review reasons, which the batch screen actually displays.
+    if(pictureUnavailable)issues.push('Pokémon picture matching could not load. Reconnect, choose Download for offline use, and wait for Ready before uploading again.');
+    if(ingredientUnavailable)issues.push('Ingredient picture matching could not load. Reconnect, choose Download for offline use, and wait for Ready before uploading again.');
     if(unique.length===1){
       const p=catalog.species.find(p=>p.name===unique[0]);
       if(!parsed.fields.species){parsed.fields.species=p.name;parsed.warnings.unshift(`Picture match: ${p.displayName}. Confirm the species before saving; nicknames do not identify a species.`)}

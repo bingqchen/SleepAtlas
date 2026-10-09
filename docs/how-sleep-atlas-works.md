@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v44**, using calculation model `atlas-1.9-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v45**, using calculation model `atlas-1.9-web`. The original Mac app has a separate storage system and an older interface.
 
 ## From screenshot to collection
 
@@ -67,7 +67,9 @@ The hosted app uses **Tesseract.js**, an English text reader running in the brow
 
 If recognition fails, first check the app version and species list. For a supported species, use a clearer detail screenshot with the header, frequency, ingredient icons, and subskill grid visible. Selecting the species manually can resolve ingredient matches that require species context. Photos are never combined into a single reading. Resume an unfinished import from Reader v39 to separate any previously grouped photos and read them again independently. Already completed saves are preserved. Any edits made to the old combined review are retained in the temporary queue for recovery, but are not copied onto separate Pokémon.
 
-An unreadable level number can still locate the portrait when its “Lv.” prefix is visible. For a close but ambiguous portrait, the reader can confirm the global best match when a clearly read main skill, both later ingredient icons, and carry capacity leave exactly one catalog species. It never substitutes a lower-ranked portrait candidate. The reported Mareep photo uses this check; its unreadable level still requires manual entry.
+An unreadable level number can still locate the portrait when its “Lv.” prefix is visible. For a close but ambiguous portrait, the reader can confirm the global best match when a clearly read main skill, both later ingredient icons, and carry capacity leave exactly one catalog species. It never substitutes a lower-ranked portrait candidate. If the skill and ingredients fit several species, a clearly read level, nature, all five subskills, and helping frequency can distinguish them. The portrait’s closest candidate must be the only species whose frequency matches. A weak level and a weak portrait cannot confirm each other. The reported Mareep photo uses this check; its unreadable level still requires manual entry.
+
+If picture-reference files cannot load, review now says so explicitly. Reconnect and complete **Download for offline use** until it says **Ready**, then use **Read this photo again** below the review image. You can also retry a retained photo after an app update. Existing corrections require confirmation before replacement, and the app keeps them if rereading fails. Successful rereading returns to **Save & next** without silently saving your review.
 
 ### Confirming a detected level
 

@@ -49,14 +49,29 @@ function frequencyLevelCheck(fields,catalog,{pictureSpecies,trusted,combined,rea
   return matches.length===1&&matches[0]===fields.level?{method:'helping-frequency',level:fields.level,seconds:fields.displayedFrequencySeconds}:null;
 }
 
-// Require field-level evidence. An average OCR score can hide a missing or
-// misread stat, so only matching readings from confident lines qualify.
-export function assessImport(result,images,catalog,{pictureSpecies=null,issues=[]}={}){
-  const fields=result.fields,reasons=[...issues],trustedResult=parseOCR(images.map(image=>({lines:image.lines.filter(l=>l.confidence>=.75)})),catalog),trusted=trustedResult.fields;
+function readingEvidence(images,catalog){
+  const trustedResult=parseOCR(images.map(image=>({lines:image.lines.filter(l=>l.confidence>=.75)})),catalog),trusted=trustedResult.fields;
   const readings=images.flatMap(image=>(image.passes||[image.lines]).map(lines=>parseOCR([{lines}],catalog))),passes=readings.map(r=>r.fields);
   const combined=parseOCR(images,catalog);
   const values=key=>new Set([...passes.map(p=>p[key]),...readings.flatMap(r=>r.evidence[key]||[]),...(combined.evidence[key]||[])].filter(present));
   const strongLevels=new Set([...trustedResult.evidence.level,...confidentHeaderLevels(images),...images.flatMap(image=>(image.passes||[]).flatMap(lines=>[...parseOCR([{lines:lines.filter(l=>l.confidence>=.75)}],catalog).evidence.level,...confidentHeaderLevels([{lines}])]))]);
+  return {trusted,readings,passes,combined,values,strongLevels,images};
+}
+
+// A weak portrait may use the displayed interval to distinguish otherwise
+// compatible evolutions, but only with an independently confident header level.
+// Never let a guessed species verify a weak level which then verifies itself.
+export function speciesWithMatchingFrequency(candidates,images,catalog){
+  const evidence=readingEvidence(images,catalog),levels=new Set([...evidence.values('level'),...evidence.strongLevels]);
+  if(levels.size!==1||evidence.strongLevels.size!==1)return [];
+  const level=[...levels][0];if(!evidence.strongLevels.has(level))return [];
+  return candidates.filter(p=>frequencyLevelCheck({...evidence.combined.fields,species:p.name,level},catalog,{...evidence,pictureSpecies:p.name}));
+}
+
+// Require field-level evidence. An average OCR score can hide a missing or
+// misread stat, so only matching readings from confident lines qualify.
+export function assessImport(result,images,catalog,{pictureSpecies=null,issues=[]}={}){
+  const fields=result.fields,reasons=[...issues],{trusted,readings,passes,combined,values,strongLevels}=readingEvidence(images,catalog);
   const levelVerification=frequencyLevelCheck(fields,catalog,{pictureSpecies,trusted,combined,readings,values,strongLevels,images});
   // A species-looking header can itself be a nickname. Never auto-save a
   // text-only species guess when the portrait was ambiguous or unavailable.

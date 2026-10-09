@@ -1,4 +1,5 @@
 import {parseOCR} from './ocr-parser.js';
+import {speciesWithMatchingFrequency} from './import-review.js';
 // Small on-device picture descriptors. No screenshot pixels leave the device.
 const SIZE=24;
 export function spriteDescriptor({data,width,height}){
@@ -75,5 +76,8 @@ export function contextualSpriteMatch(ranked,lines,ingredients,catalog){
   if(slots.some(ms=>!ms.length||new Set(ms.map(m=>m.ingredient)).size!==1||new Set(ms.map(m=>m.amount).filter(Number.isInteger)).size>1))return null;
   const stats=parseOCR([{lines:trusted}],catalog),carry=stats.fields.carrySize;if(!carry||new Set(stats.evidence.carrySize).size!==1)return null;
   const eligible=catalog.species.filter(p=>skills.has(p.skillLabel)&&p.carrySize<=carry&&slots.every((ms,i)=>p[`ingredient${i===0?30:60}`].some(o=>o.ingredient.name===ms[0].ingredient&&ms.every(m=>!Number.isInteger(m.amount)||o.amount===m.amount))));
-  return eligible.length===1&&eligible[0].name===best.species?best.species:null;
+  if(eligible.length===1)return eligible[0].name===best.species?best.species:null;
+  if(!eligible.some(p=>p.name===best.species))return null;
+  const frequencyMatches=speciesWithMatchingFrequency(eligible,[{lines}],catalog);
+  return frequencyMatches.length===1&&frequencyMatches[0].name===best.species?best.species:null;
 }
