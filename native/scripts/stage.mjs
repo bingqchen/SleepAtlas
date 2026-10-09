@@ -1,0 +1,20 @@
+import {cp,mkdir,readFile,readdir,rm,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
+import {build} from 'esbuild';
+const root=fileURLToPath(new URL('../../',import.meta.url));
+const source=path.join(root,'hosted/dist'),target=path.join(root,'native/www');
+await rm(target,{recursive:true,force:true});await mkdir(target,{recursive:true});
+await cp(source,target,{recursive:true,dereference:false,filter:src=>!['_headers'].includes(path.basename(src))});
+await build({entryPoints:[path.join(root,'native/bridge-entry.js')],bundle:true,format:'iife',platform:'browser',target:'safari15',outfile:path.join(target,'native-bridge.js'),legalComments:'eof'});
+let html=await readFile(path.join(target,'index.html'),'utf8');
+html=html.replace('</head>','<script src="/native-bridge.js"></script></head>');
+await writeFile(path.join(target,'index.html'),html);
+await cp(path.join(root,'node_modules/@capacitor/core/LICENSE'),path.join(target,'licenses/capacitor-LICENSE'));
+const pkg=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'));
+const files={};
+async function inventory(dir){for(const item of await readdir(dir,{withFileTypes:true})){const full=path.join(dir,item.name);if(item.isSymbolicLink())throw Error('Native bundle must not contain symlinks');if(item.isDirectory())await inventory(full);else files[path.relative(target,full)]=createHash('sha256').update(await readFile(full)).digest('hex')}}
+await inventory(target);
+await writeFile(path.join(target,'native-build.json'),JSON.stringify({version:pkg.version,reader:html.match(/Reader v\d+/)?.[0],files},null,2)+'\n');
+console.log(`Staged ${Object.keys(files).length} files from hosted/dist for iOS ${pkg.version}.`);

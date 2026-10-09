@@ -1,4 +1,5 @@
 (() => {
+  if(globalThis.SleepAtlasNative?.isNative===true)return;
   const get=id=>document.getElementById(id);let installPrompt;
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;get('native-install').hidden=false});
   window.addEventListener('appinstalled',()=>{installPrompt=null;get('native-install').hidden=true;get('install-status').textContent='Sleep Atlas has been added. Launch it from its app icon.'});

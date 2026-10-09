@@ -9,10 +9,10 @@ function compare(actual,expected,path='root'){
   assert.equal(actual,expected,path);
 }
 // Preserve the independent historical fixture by checking its solo baseline.
-// New automatic/team math and warning text are covered in berry-team.mjs.
+// New automatic/team math and warning text are covered in berry-team.mjs and draco-team.mjs.
 for(const row of cases){
   compare(engine.calculate(engine.validate(row.build),row.build.level,{berryTeam:[]}),row.current,row.build.species);
-  if(row.analysis){const actual=engine.analyze(row.build,{berryTeam:[]}),expected=structuredClone(row.analysis);for(const a of [actual,expected])a.warnings=a.warnings.filter(w=>!w.startsWith('Berry Burst:'));compare(actual,expected,row.build.species)}
+  if(row.analysis){const actual=engine.analyze(row.build,{berryTeam:[]}),expected=structuredClone(row.analysis);for(const a of [actual,expected])a.warnings=a.warnings.filter(w=>!w.startsWith('Berry Burst:')&&!w.startsWith('Draco Meteor'));compare(actual,expected,row.build.species)}
 }
 assert.equal(skillExpectation(3,1,2),2);
 assert.throws(()=>engine.validate({...cases[0].build,level:NaN}));

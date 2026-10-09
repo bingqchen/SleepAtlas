@@ -296,3 +296,9 @@ Model `atlas-1.10-web` refreshes prior saved analyses without rewriting builds o
 Validation: `tests/draco-team.mjs` covers the full skill-level/species matrix, Latias and duplicate species, mixed receivers, strength/count accounting, island caps/rates, forecasts, temporary levels, missing teammates, model refresh, Python parity and actual picker/context setup. Existing Berry Burst, Mew, island, offline and preference transaction tests pass. Browser import of test data was not performed because automatic approval review protected the local collection.
 
 Source: [Neroli's Lab Draco Meteor tables](https://github.com/nerolis-lab/nerolis-lab/blob/74e5068c1fa76518803caa8705798389da7f635d/common/src/types/mainskill/mainskills/berry-burst/berry-burst-draco-meteor.ts).
+
+## Reader v47 · shared web / native app
+
+The repository's Capacitor iOS target stages this directory's `dist` as its canonical application. `platform.js` keeps the website's upload and JSON download controls while selecting native screenshot picking and sharing in the bundled app. The native bridge is injected only into the generated iOS copy; it is not published on this website. Native builds skip the PWA install, service-worker and offline-download flow because assets ship inside the app. Drafts also flush when the app becomes hidden.
+
+The web release retains its deployment and offline-download workflow. The v47 worker includes the platform module and can still cold-load a complete v46 offline download while an update is incomplete.

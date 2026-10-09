@@ -4,6 +4,12 @@ A mobile-friendly, local Pokémon Sleep screenshot analyzer. Import English deta
 
 For the current hosted app, read [How Sleep Atlas works](docs/how-sleep-atlas-works.md): screenshot recognition, calculations, ratings, local storage, backups, and catalog updates.
 
+## Current web and iOS apps
+
+The maintained web app lives in `hosted/dist`. The new Capacitor iOS target packages those same files, calculations, screenshot reader, and local IndexedDB storage. See [iOS development and release instructions](native/README.md) for building, signing, importing your existing JSON backup, and keeping web and native releases separate. Native integration starts at version 0.1.0 / Reader v47.
+
+The remaining Mac-server instructions below describe the original Python/SQLite edition.
+
 ## Run on this Mac
 
 ```sh

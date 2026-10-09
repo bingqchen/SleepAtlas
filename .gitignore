@@ -17,3 +17,10 @@ node_modules/
 *.tar.gz
 /hosted/.openai/
 /subskills-fixed-v7.png
+/native/www/
+/native/build/
+/native/ios/App/App/public/
+/native/ios/App/App/capacitor.config.json
+/native/ios/App/App/config.xml
+**/xcuserdata/
+**/.DS_Store

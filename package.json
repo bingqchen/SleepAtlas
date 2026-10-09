@@ -1,0 +1,27 @@
+{
+  "name": "sleep-atlas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "native:stage": "node native/scripts/stage.mjs",
+    "ios:sync": "node native/scripts/stage.mjs && cap sync ios",
+    "ios:open": "cap open ios",
+    "ios:build": "node native/scripts/build-ios.mjs",
+    "test:native": "node native/tests/platform.mjs && node native/tests/bundle.mjs",
+    "test:web": "node native/scripts/test-web.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.5"
+  }
+}

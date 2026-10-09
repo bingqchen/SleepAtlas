@@ -155,3 +155,7 @@ dialog{background:#fffef8;border-color:var(--sun-border)}
 @media(max-width:600px){.topbar{padding:12px 16px;gap:8px}.sunshine-sticker{width:62px;height:46px}.sunshine-sticker+.topbar-actions{margin-left:0}.brand{font-size:1.4rem}}
 @media(max-width:350px){.sunshine-sticker{width:40px;height:40px}.topbar{padding-left:12px;padding-right:12px;gap:6px}.brand{gap:8px;font-size:1.3rem}}
 @media(forced-colors:active){.topbar{background-image:none}.sunshine-sticker{display:none}.primary,.summary-table-wrap{border:1px solid ButtonText}.summary-table tbody tr:focus-within{outline:2px solid Highlight}}
+
+/* Native WebViews do not match the Home Screen display-mode media query. */
+.native-app body{overscroll-behavior-y:none}
+.native-app footer{padding-bottom:calc(25px + env(safe-area-inset-bottom))}

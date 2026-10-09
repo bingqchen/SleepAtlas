@@ -2,7 +2,13 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v46**, using calculation model `atlas-1.10-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v47**, using calculation model `atlas-1.10-web`. The original Mac app has a separate storage system and an older interface.
+
+## Native iOS version
+
+The Capacitor target packages the same web interface, calculation engine, catalog, and screenshot reader inside an iOS app. It loads from the installed bundle rather than the hosted website, so it needs neither a ChatGPT sign-in nor a separate offline download. The screenshot button opens Apple's picker filtered to screenshots; **Browse all photos** accepts other saved images. Only selected images are made available to the app. Downloading a photo stored only in iCloud can still need a connection.
+
+Native backup export uses the iOS share sheet. Its local IndexedDB collection is separate from Safari and the Home Screen web app: export a JSON backup from the version you currently use, then restore it in the native app. Web publishing and iOS app updates are separate releases. See [the native development guide](../native/README.md) for build instructions and remaining device checks.
 
 ## From screenshot to collection
 

@@ -1,0 +1,15 @@
+{
+  "appId": "com.bingqchen.sleepatlas",
+  "appName": "Sleep Atlas",
+  "webDir": "native/www",
+  "ios": {
+    "path": "native/ios",
+    "contentInset": "never",
+    "preferredContentMode": "mobile",
+    "backgroundColor": "#fffbed"
+  },
+  "server": {
+    "hostname": "localhost",
+    "iosScheme": "capacitor"
+  }
+}
