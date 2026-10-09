@@ -251,3 +251,20 @@ Constraints: Exactly one app icon. True square, 1024 × 1024. Opaque background;
 The generated face uses warm dark brown. Final web assets are `dist/icon.svg`, `dist/icon-180.png`, `dist/icon-192.png`, and `dist/icon-512.png`; the SVG embeds a 128 px version and adds rounded display corners.
 
 Validation: exact raster dimensions/opacity, local browser rendering, and the existing offline suite including versioned icon requests.
+
+## Moon app icon (Reader v43)
+
+Replaces the Sunshine Picnic sun icon with a sleepy golden crescent and three small stars, retaining cream/yellow gingham and the existing skin. Browser/header SVG, 180 px Apple touch icon, 192/512 px manifest icons, and installation copy share the moon identity. Versioned icon URLs and the offline shell advance to v43. Manifest app identity, launch URL, and saved data are unchanged. Raster dimensions and opacity and all offline icon URLs are verified.
+
+Built-in imagegen used the previous icon as a style reference. Final project assets: `dist/icon.svg`, `dist/icon-180.png`, `dist/icon-192.png`, and `dist/icon-512.png`. Final generation prompt:
+
+```text
+Use case: style-transfer
+Asset type: ONE square opaque app icon for a sleeping app, desired 1024 × 1024 PNG.
+Input images: Image 1 is the current app icon and the STYLE REFERENCE. Keep its warm pale yellow and cream gingham background and friendly soft painted Sunshine Picnic aesthetic. Replace the sun and leaves completely with the new bedtime subject.
+Primary request: A large golden-yellow crescent moon with simple sleepy closed eyes and a tiny peaceful curved smile. Include exactly three small simple stars around the moon, in dark evergreen and muted gold. The moon must have a clear, strong crescent silhouette that is immediately legible at 32 pixels.
+Style/medium: Clean bold simplified illustration with gentle chalk-soft painted texture, soft golden shading, calm cheerful bedtime feel. Face marks dark evergreen, bold enough to read when tiny. No fine detail. The moon is dominant and the three stars are small accents.
+Composition/framing: Center the crescent moon and stars as one balanced compact composition, with all artwork inside the central 80 percent of the square and comfortable padding for rounded or circular OS masks. The crescent opens toward the right. The outer crescent curve is smooth and recognizably moon-shaped; sleepily closed eyes and smile live on its broad golden portion.
+Scene/backdrop: Full-bleed opaque pale yellow and warm cream gingham, subtle and low contrast. Continue the check pattern to all four square edges.
+Constraints: Remove every sun ray and both leaves from the reference. No sun disc, no sun rays, no leaves, no extra objects besides one crescent moon and three stars. True square, desired 1024 × 1024. Opaque background; no transparency. No text, lettering, initials, watermark, border, UI, device mockup, or pre-rounded corners.
+```
