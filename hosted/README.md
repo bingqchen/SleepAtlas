@@ -230,3 +230,24 @@ Validation: import-batch covers legacy migration and idempotence; `node tests/im
 The collection, details, editor, menus, and supporting dialogs use the selected Sunshine Picnic theme: a yellow gingham masthead, cream paper, dark green type, pale green table headings, alternating cream rows, and yellow primary actions. The moon app icon, table density, interaction flow, and saved data are preserved. A decorative sun-and-leaves asset is bundled locally and included in the offline shell. Manifest and browser theme colors match the new surface.
 
 Validation: mobile and desktop browser checks cover collection rows, menus, detail/edit screens, and narrow layouts. The offline suite verifies all real shell assets, including the new decoration, remain downloadable and available without a network.
+
+## Sunshine Picnic app icon (Reader v42)
+
+The browser favicon, top-bar logo, installation preview, iPhone/iPad touch icon (180 px), and web-app manifest icons (192 / 512 px) now share a smiling golden sun and green leaves on yellow gingham. All icon URLs carry `?v=42` to refresh browser caches; the service worker caches their normalized paths for offline use. Manifest identity, launch URL, and collection storage stay the same. Already-installed Home Screen icons are managed by the operating system, so publishing does not confirm an existing shortcut has refreshed.
+
+Artwork was generated with built-in imagegen using the existing Sunshine Picnic decoration as its style reference. Final generation prompt:
+
+```text
+Use case: stylized-concept
+Asset type: One square app icon, opaque 1024 × 1024 PNG.
+Input images: Image 1 is a STYLE REFERENCE for the friendly Sunshine Picnic sun character, golden palette, soft painted texture, and fresh green leaves. This is a new app icon composition based on that style, not a transparent decoration.
+Primary request: A large friendly golden-yellow sun with soft painted short rays, simple dark evergreen dot eyes and curved smile, and exactly two small fresh green leaves. Simplify the reference into a bold, clear app icon silhouette readable at 32 pixels.
+Scene/backdrop: Full-bleed opaque pale yellow and warm cream gingham with a very subtle low-contrast check pattern. Background fills the entire square.
+Style/medium: Clean flat illustration with restrained chalk-soft painted texture, warm cheerful picnic mood. Golden sun is dominant; green leaves are supporting accents. Avoid fine veins or delicate details.
+Composition/framing: One centered sun with two small leaves tucked near its lower sides. The complete sun-and-leaf silhouette fits within the central 70 percent of the square so all details remain safe under circular or rounded OS masks. Clear separation from gingham background. Short sturdy rays; face and leaves legible when tiny.
+Constraints: Exactly one app icon. True square, 1024 × 1024. Opaque background; no transparency. No text, lettering, initials, watermark, border, UI, device mockup, or pre-rounded corners. Do not add any additional objects.
+```
+
+The generated face uses warm dark brown. Final web assets are `dist/icon.svg`, `dist/icon-180.png`, `dist/icon-192.png`, and `dist/icon-512.png`; the SVG embeds a 128 px version and adds rounded display corners.
+
+Validation: exact raster dimensions/opacity, local browser rendering, and the existing offline suite including versioned icon requests.
