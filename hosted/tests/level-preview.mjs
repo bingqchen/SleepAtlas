@@ -55,7 +55,7 @@ const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',ope
 let edited;
 const row={id:'saved',analysis:saved,screenshots:[{id:'image',filename:'example',text:[]}],historyCount:1};
 const ctx=vm.createContext({$:node,online:true,catalog,api:async()=>row,levelPreview:preview,visibleCollection:()=>[row],species:n=>engine.species.get(n),resolveMainSkill,favoriteMultiplier,berryOptions,describeFavorites,
-  berryTeamFor:()=>({berryTeam:null,missing:0}),updateDetailButtons(){},detailNavigation:()=>'',pokemonStats:()=>'',ingredientTable:()=>'',escapeHTML:String,fmt:String,bindClose(){},closeDetails(){},openEditor:(...args)=>edited=args,toast:message=>{throw Error(message)}});
+  helpingBonusTeamFor:()=>[],helpingBonusSummary:()=>'',berryTeamFor:()=>({berryTeam:null,missing:0}),updateDetailButtons(){},detailNavigation:()=>'',pokemonStats:()=>'',ingredientTable:()=>'',escapeHTML:String,fmt:String,bindClose(){},closeDetails(){},openEditor:(...args)=>edited=args,toast:message=>{throw Error(message)}});
 vm.runInContext('let detailRequest=0,detailLoading=false,detailId=null,detailOrder=[],levelOverride=70,favoriteBerryConfig=null;'+showing,ctx);
 await vm.runInContext('showDetails("saved")',ctx);
 assert.match(node('detail-body').innerHTML,/TEMPORARY PREVIEW · LV. 70/);assert.match(node('detail-body').innerHTML,/Saved level: 52/);

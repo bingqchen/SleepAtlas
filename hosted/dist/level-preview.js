@@ -7,11 +7,11 @@ export const TEMPORARY_LEVELS=[25,30,50,60,70,80];
 // modified, and this cache is discarded when the page reloads.
 export function createLevelPreview(catalog){
   const engine=new Engine(catalog),cache=new Map();
-  return (analysis,level,{full=false,favoriteBerries=null,berryTeam=null}={})=>{
+  return (analysis,level,{full=false,favoriteBerries=null,berryTeam=null,helpingBonusTeam=null}={})=>{
     if(level!==null&&!TEMPORARY_LEVELS.includes(level))throw Error('Choose a supported temporary level.');
     const changedLevel=level!==null&&level!==analysis.build.level;
-    if(!changedLevel&&favoriteBerries===null&&berryTeam===null)return analysis;
-    const key=JSON.stringify([analysis.modelVersion,analysis.catalogCommit,analysis.build,level,favoriteBerries,berryTeam]);
+    if(!changedLevel&&favoriteBerries===null&&berryTeam===null&&helpingBonusTeam===null)return analysis;
+    const key=JSON.stringify([analysis.modelVersion,analysis.catalogCommit,analysis.build,level,favoriteBerries,berryTeam,helpingBonusTeam]);
     let entry=cache.get(key);
     if(!entry){
       const saved=analysis.build,build={...saved,level:level??saved.level};
@@ -30,7 +30,7 @@ export function createLevelPreview(catalog){
     }
     // Lists only need output totals. Calculate the reference population when
     // opening details or sorting by rating, then reuse it across filter changes.
-    const context={berryTeam,mainSkillLevelBonus:favoriteSkillLevelBonus(entry.build,catalog,favoriteBerries),skillTriggerMultiplier:favoriteSkillTriggerMultiplier(entry.build,catalog,favoriteBerries)};
+    const context={berryTeam,helpingBonusTeam,mainSkillLevelBonus:favoriteSkillLevelBonus(entry.build,catalog,favoriteBerries),skillTriggerMultiplier:favoriteSkillTriggerMultiplier(entry.build,catalog,favoriteBerries)};
     if(full)return entry.full??=engine.analyze(entry.build,context);
     return entry.full??(entry.summary??={build:entry.build,current:engine.calculate(entry.build,entry.build.level,context)});
   };

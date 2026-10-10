@@ -2,7 +2,7 @@
 
 Sleep Atlas turns Pokémon Sleep detail screenshots into a collection of Pokémon builds, estimates their daily output, and compares each build with other builds of the same species. Screenshot reading, calculations, and saving run on your device. The website supplies the app and a bundled Pokémon catalog; it does not synchronize your collection between devices.
 
-This guide describes the hosted app as of **Reader v47**, using calculation model `atlas-1.10-web`. The original Mac app has a separate storage system and an older interface.
+This guide describes the hosted app as of **Reader v49**, using calculation model `atlas-1.11-web`. The original Mac app has a separate storage system and an older interface.
 
 ## Native iOS version
 
@@ -97,6 +97,23 @@ For the Pokémon’s own calculated stat, the app applies species base frequency
 
 Calculated carry limit starts with species base inventory, adds five per previous evolution, and adds active Inventory Up bonuses. When you change evolution or level, the editor preserves the difference between the recorded carry limit and this baseline, so an existing additive bonus is not lost or repeatedly added. Recorded and calculated values remain editable.
 
+### Automatic Helping Bonus contribution
+
+An unlocked Helping Bonus adds an estimate of the extra daily strength it gives **up to three other Pokémon** in the current filtered collection. This avoids maintaining a team manually; using three instead of four is a conservative team-composition assumption.
+
+The app first applies temporary levels, island settings, and existing berry-skill teammate choices to each Pokémon without Helping Bonus support credit. It filters by name prefix and specialty, excludes the evaluated Pokémon, then chooses the three highest strength results. Stable IDs break strength ties. Changing the list sort does not change the selected teammates. Saving, editing, restoring, deleting, or filtering Pokémon updates the estimate. With fewer than three eligible helpers, only those available contribute; an empty selection adds zero.
+
+Each selected teammate is calculated twice: with its existing `Other teammates with Helping Bonus` count, then with one extra source (up to four). This setting represents background bonuses excluding the evaluated holder. Both calculations preserve the teammate’s own Helping Bonus, nature, subskills, carry limit, main skill and island assumptions. The difference respects the 35% combined subskill speed cap, inventory saturation, and skill banking. The holder’s own speed improvement is already included in its output and is not counted again.
+
+```text
+Helping Bonus support = sum of each selected teammate’s strength gain
+Total strength = own modeled strength + Helping Bonus support
+```
+
+Only total strength and its percentile include the added support. Own berry, ingredient, skill-trigger counts and RP do not change. Details name the selected helpers and show their individual gains and the support subtotal. Every synthetic comparison build uses the same selected teammates and receives support credit only if its own Helping Bonus is unlocked. This applies even when the saved Pokémon does not have Helping Bonus. Forecasts hold these teammates at their current preview levels while advancing the holder, so a future Helping Bonus unlock starts contributing at the correct level.
+
+These are individual contribution estimates, not additive team totals: adding several Pokémon’s displayed totals can count some support twice. Cooking/recipe value, energy-skill feedback, and unmodeled support effects remain excluded. Selection and support are derived views and do not modify saved builds, backups, or history. The Capacitor app uses the same calculation after installing a build containing this release; the legacy Python app does not include this feature.
+
 ### Ingredients and skills
 
 Only unlocked ingredient slots contribute: the first slot from level 1, the second from level 30, and the third from level 60. The model treats unlocked selected slots as equally likely on an ingredient help. Base ingredient probability is adjusted by nature and active Ingredient Finder subskills.
@@ -118,6 +135,7 @@ Total berries = gathered berries + modeled own berries from skills
 Total raw strength = berry strength
                    + gathered ingredients at their base values
                    + supported direct skill strength
+                   + automatic Helping Bonus support
 ```
 
 Favorite berry multipliers affect berry strength, including modeled skill berries, but do not increase berry counts. The area bonus scales modeled strength. The screenshot’s RP number is not used as daily strength; daily strength is calculated from expected production. Ingredient Magnet’s extra ingredients are shown separately because their types and strength depend on the player’s unlocked ingredient pool.
